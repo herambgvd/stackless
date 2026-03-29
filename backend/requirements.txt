@@ -1,7 +1,8 @@
 fastapi
 uvicorn[standard]
-motor
-beanie
+motor==3.6.0
+beanie==1.26.0
+pymongo==4.9.2
 pydantic-settings
 pydantic[email]
 python-jose[cryptography]
@@ -19,7 +20,6 @@ jinja2
 aiosmtplib
 email-validator
 croniter
-pymongo
 
 # ─── AI Builder ───────────────────────────────────────────────────────────────
 cryptography
