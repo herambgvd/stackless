@@ -14,17 +14,30 @@ _client: motor.motor_asyncio.AsyncIOMotorClient | None = None
 def _build_mongo_uri() -> str:
     """Return MongoDB URI with RFC 3986 encoded credentials.
 
-    Credentials in the URI may contain special characters if the user entered
-    a custom password. quote_plus is idempotent for safe chars (hex, alphanum),
-    so auto-generated hex passwords pass through unchanged.
+    Credentials are taken from separate settings (MONGODB_USERNAME / MONGODB_PASSWORD)
+    and injected into the URI with proper percent-encoding so that special
+    characters in the password never break the connection string.
     """
-    import re
     uri = settings.MONGODB_URI
-    m = re.match(r"^(mongodb(?:\+srv)?://)([^:]+):([^@]+)@(.+)$", uri)
-    if not m:
+    username = settings.MONGODB_USERNAME
+    password = settings.MONGODB_PASSWORD
+
+    if not username:
         return uri
-    scheme, user, password, rest = m.group(1), m.group(2), m.group(3), m.group(4)
-    return f"{scheme}{quote_plus(user)}:{quote_plus(password)}@{rest}"
+
+    encoded_user = quote_plus(username)
+    encoded_pass = quote_plus(password)
+
+    # Strip any existing credentials from the URI before injecting encoded ones
+    # Handles both mongodb:// and mongodb+srv://
+    if "://" in uri:
+        scheme, rest = uri.split("://", 1)
+        # Remove existing user:pass@ if present
+        if "@" in rest:
+            rest = rest.rsplit("@", 1)[-1]
+        return f"{scheme}://{encoded_user}:{encoded_pass}@{rest}"
+
+    return uri
 
 
 def get_motor_client() -> motor.motor_asyncio.AsyncIOMotorClient:

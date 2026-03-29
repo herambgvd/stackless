@@ -16,8 +16,10 @@ class Settings(BaseSettings):
     )
 
     # MongoDB
-    MONGODB_URI: str = "mongodb://admin:password@localhost:27017/flowforge?authSource=admin"
+    MONGODB_URI: str = "mongodb://localhost:27017/flowforge?authSource=admin"
     MONGODB_DB_NAME: str = "flowforge"
+    MONGODB_USERNAME: str = "admin"
+    MONGODB_PASSWORD: str = "password"
 
     # JWT / Security
     SECRET_KEY: str = "change-me-to-a-long-random-secret-key"
