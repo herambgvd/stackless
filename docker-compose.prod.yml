@@ -1,0 +1,246 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: flowforge-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGODB_DB_NAME:-flowforge}
+    # NO host ports — internal network only
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - flowforge-net
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: flowforge-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    # NO host ports — internal network only
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD --no-auth-warning ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - flowforge-net
+
+  rustfs:
+    image: rustfs/rustfs:RELEASE.2024-11-06T08-25-00Z
+    container_name: flowforge-rustfs
+    restart: unless-stopped
+    environment:
+      RUSTFS_ROOT_USER: ${RUSTFS_ACCESS_KEY}
+      RUSTFS_ROOT_PASSWORD: ${RUSTFS_SECRET_KEY}
+    # NO host ports — internal network only
+    volumes:
+      - rustfs_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - flowforge-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: flowforge-backend:latest
+    container_name: flowforge-backend
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGODB_DB_NAME:-flowforge}?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
+      RUSTFS_ENDPOINT: rustfs:9000
+      ENVIRONMENT: production
+      DEBUG: "false"
+    ports:
+      - "127.0.0.1:8000:8000"   # Only accessible from localhost (Nginx)
+    # NO bind mount — uses built image
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - flowforge-net
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: flowforge-backend:latest
+    container_name: flowforge-celery-worker
+    restart: unless-stopped
+    command: celery -A celery_worker worker --loglevel=warning --concurrency=2 -Q default,workflows,notifications
+    env_file:
+      - .env.production
+    environment:
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGODB_DB_NAME:-flowforge}?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
+      RUSTFS_ENDPOINT: rustfs:9000
+      ENVIRONMENT: production
+      DEBUG: "false"
+    # NO bind mount — uses built image
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - flowforge-net
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: flowforge-backend:latest
+    container_name: flowforge-celery-beat
+    restart: unless-stopped
+    user: root
+    command: celery -A celery_worker beat --loglevel=warning --scheduler celery.beat:PersistentScheduler --schedule /app/celerybeat/celerybeat-schedule
+    env_file:
+      - .env.production
+    environment:
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${MONGODB_DB_NAME:-flowforge}?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/2
+      ENVIRONMENT: production
+      DEBUG: "false"
+    # NO bind mount — uses built image
+    volumes:
+      - celery_beat_data:/app/celerybeat
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - flowforge-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: flowforge-frontend:latest
+    container_name: flowforge-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"    # Only accessible from localhost (Nginx)
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - flowforge-net
+
+volumes:
+  mongodb_data:
+  redis_data:
+  rustfs_data:
+  celery_beat_data:
+
+networks:
+  flowforge-net:
+    driver: bridge
