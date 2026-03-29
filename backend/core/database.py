@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import motor.motor_asyncio
 from beanie import init_beanie
+from urllib.parse import quote_plus
 
 from core.config import get_settings
 
@@ -10,11 +11,27 @@ settings = get_settings()
 _client: motor.motor_asyncio.AsyncIOMotorClient | None = None
 
 
+def _build_mongo_uri() -> str:
+    """Return MongoDB URI with RFC 3986 encoded credentials.
+
+    Credentials in the URI may contain special characters if the user entered
+    a custom password. quote_plus is idempotent for safe chars (hex, alphanum),
+    so auto-generated hex passwords pass through unchanged.
+    """
+    import re
+    uri = settings.MONGODB_URI
+    m = re.match(r"^(mongodb(?:\+srv)?://)([^:]+):([^@]+)@(.+)$", uri)
+    if not m:
+        return uri
+    scheme, user, password, rest = m.group(1), m.group(2), m.group(3), m.group(4)
+    return f"{scheme}{quote_plus(user)}:{quote_plus(password)}@{rest}"
+
+
 def get_motor_client() -> motor.motor_asyncio.AsyncIOMotorClient:
     global _client
     if _client is None:
         _client = motor.motor_asyncio.AsyncIOMotorClient(
-            settings.MONGODB_URI,
+            _build_mongo_uri(),
             serverSelectionTimeoutMS=5000,
         )
     return _client
