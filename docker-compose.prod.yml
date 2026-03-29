@@ -55,7 +55,7 @@ services:
       - flowforge-net
 
   rustfs:
-    image: rustfs/rustfs:RELEASE.2024-11-06T08-25-00Z
+    image: rustfs/rustfs:latest
     container_name: flowforge-rustfs
     restart: unless-stopped
     environment:
