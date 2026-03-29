@@ -123,8 +123,10 @@ if [[ ! -d "$APP_DIR" ]]; then
     mkdir -p "$APP_DIR"
 fi
 
-# Check if we're running from the project directory or need to clone
-if [[ -f "$(pwd)/docker-compose.prod.yml" ]]; then
+# Check if we're already in APP_DIR, need to copy, or APP_DIR already has files
+if [[ "$(pwd)" == "$APP_DIR" ]]; then
+    log "Already in $APP_DIR — using files in place"
+elif [[ -f "$(pwd)/docker-compose.prod.yml" ]]; then
     log "Copying project files to $APP_DIR..."
     # Preserve existing .env.production if it exists (don't overwrite production secrets)
     if [[ -f "$APP_DIR/$ENV_FILE" ]]; then
