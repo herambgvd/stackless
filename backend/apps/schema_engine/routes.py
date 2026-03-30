@@ -812,7 +812,7 @@ async def assign_record_endpoint(
                     template_id=None,
                     notification_context={},
                     tenant_id=tenant_id,
-                    subject=f"[FlowForge] Record assigned to you by {assigner_name}",
+                    subject=f"[Stackless] Record assigned to you by {assigner_name}",
                     body=f"{assigner_name} assigned a {model_name} record to you." + (f" Note: {note}" if note else "") + (f" Due: {due_date}" if due_date else ""),
                 )
         except Exception:

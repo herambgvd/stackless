@@ -181,7 +181,7 @@ async def test_tenant_email_config(
     try:
         await EmailChannel(tenant_id=tenant_id).send(
             recipient=payload.recipient,
-            subject_template="Test email from FlowForge",
+            subject_template="Test email from Stackless",
             body_template="<p>This is a test email confirming your SMTP configuration is working correctly.</p>",
             context={},
         )

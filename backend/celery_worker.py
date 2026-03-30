@@ -8,7 +8,7 @@ from core.config import get_settings
 settings = get_settings()
 
 celery_app = Celery(
-    "flowforge",
+    "stackless",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
     include=[

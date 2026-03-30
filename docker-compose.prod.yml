@@ -1,12 +1,12 @@
 services:
   mongodb:
     image: mongo:7.0
-    container_name: flowforge-mongodb
+    container_name: stackless-mongodb
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGODB_DB_NAME:-flowforge}
+      MONGO_INITDB_DATABASE: ${MONGODB_DB_NAME:-stackless}
     # NO host ports — internal network only
     volumes:
       - mongodb_data:/data/db
@@ -26,11 +26,11 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - flowforge-net
+      - stackless-net
 
   redis:
     image: redis:7.2-alpine
-    container_name: flowforge-redis
+    container_name: stackless-redis
     restart: unless-stopped
     command: redis-server --requirepass ${REDIS_PASSWORD}
     environment:
@@ -54,11 +54,11 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - flowforge-net
+      - stackless-net
 
   rustfs:
     image: rustfs/rustfs:latest
-    container_name: flowforge-rustfs
+    container_name: stackless-rustfs
     restart: unless-stopped
     environment:
       RUSTFS_ROOT_USER: ${RUSTFS_ACCESS_KEY}
@@ -83,19 +83,19 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - flowforge-net
+      - stackless-net
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: flowforge-backend:latest
-    container_name: flowforge-backend
+    image: stackless-backend:latest
+    container_name: stackless-backend
     restart: unless-stopped
     env_file:
       - .env.production
     environment:
-      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB_NAME:-flowforge}?authSource=admin
+      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB_NAME:-stackless}?authSource=admin
       MONGODB_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGODB_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -130,20 +130,20 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - flowforge-net
+      - stackless-net
 
   celery-worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: flowforge-backend:latest
-    container_name: flowforge-celery-worker
+    image: stackless-backend:latest
+    container_name: stackless-celery-worker
     restart: unless-stopped
     command: celery -A celery_worker worker --loglevel=warning --concurrency=2 -Q default,workflows,notifications
     env_file:
       - .env.production
     environment:
-      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB_NAME:-flowforge}?authSource=admin
+      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB_NAME:-stackless}?authSource=admin
       MONGODB_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGODB_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -170,21 +170,21 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - flowforge-net
+      - stackless-net
 
   celery-beat:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: flowforge-backend:latest
-    container_name: flowforge-celery-beat
+    image: stackless-backend:latest
+    container_name: stackless-celery-beat
     restart: unless-stopped
     user: root
     command: celery -A celery_worker beat --loglevel=warning --scheduler celery.beat:PersistentScheduler --schedule /app/celerybeat/celerybeat-schedule
     env_file:
       - .env.production
     environment:
-      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB_NAME:-flowforge}?authSource=admin
+      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB_NAME:-stackless}?authSource=admin
       MONGODB_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGODB_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -212,7 +212,7 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - flowforge-net
+      - stackless-net
 
   frontend:
     build:
@@ -220,8 +220,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: https://${API_DOMAIN:-api.stackless.cloud}/api/v1
-    image: flowforge-frontend:latest
-    container_name: flowforge-frontend
+    image: stackless-frontend:latest
+    container_name: stackless-frontend
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:80"    # Only accessible from localhost (Nginx)
@@ -243,7 +243,7 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - flowforge-net
+      - stackless-net
 
 volumes:
   mongodb_data:
@@ -252,5 +252,5 @@ volumes:
   celery_beat_data:
 
 networks:
-  flowforge-net:
+  stackless-net:
     driver: bridge

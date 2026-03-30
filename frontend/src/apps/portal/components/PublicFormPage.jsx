@@ -516,7 +516,7 @@ export default function PublicFormPage({ tenantId, formSlug }) {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Powered by FlowForge
+          Powered by Stackless
         </p>
       </div>
     </div>

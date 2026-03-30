@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import status
 
-from core.exceptions import FlowForgeException
+from core.exceptions import StacklessException
 
 # ---------------------------------------------------------------------------
 # Plan limits registry
@@ -58,7 +58,7 @@ def get_plan_limits(plan: str) -> dict[str, int | bool]:
     return PLAN_LIMITS.get(plan.lower(), PLAN_LIMITS["free"])
 
 
-class LimitExceededError(FlowForgeException):
+class LimitExceededError(StacklessException):
     """Raised when a tenant has reached their plan limit for a resource."""
 
     status_code = status.HTTP_402_PAYMENT_REQUIRED

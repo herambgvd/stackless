@@ -140,8 +140,8 @@ function Skeleton({ className = "" }) {
   return <div className={`animate-pulse bg-slate-100 rounded ${className}`} />;
 }
 
-function PlanBadge({ plan }) {
-  const meta = PLAN_META[plan] || PLAN_META.free;
+function PlanBadge({ plan, planMeta }) {
+  const meta = planMeta[plan] || planMeta.free || PLAN_UI[plan] || PLAN_UI.free;
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meta.badgeColor}`}
@@ -405,7 +405,7 @@ export function BillingPage() {
                 {isLoading ? (
                   <Skeleton className="w-20 h-6" />
                 ) : (
-                  <PlanBadge plan={currentPlan} />
+                  <PlanBadge plan={currentPlan} planMeta={PLAN_META} />
                 )}
                 {isLoading ? (
                   <Skeleton className="w-32 h-4" />
@@ -571,7 +571,7 @@ export function BillingPage() {
                         </button>
                       ) : plan === "enterprise" ? (
                         <a
-                          href="mailto:sales@flowforge.io"
+                          href="mailto:sales@stackless.cloud"
                           className="mt-1 text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors"
                         >
                           Contact sales
@@ -674,7 +674,7 @@ export function BillingPage() {
             </p>
           </div>
           <a
-            href="mailto:sales@flowforge.io"
+            href="mailto:sales@stackless.cloud"
             className="flex-shrink-0 inline-flex items-center gap-1.5 bg-white text-slate-900 hover:bg-slate-100 rounded-md px-5 py-2.5 font-semibold text-sm transition-colors duration-150"
           >
             Contact Sales

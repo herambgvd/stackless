@@ -1,6 +1,6 @@
 {
-  "name": "FlowForge",
-  "short_name": "FlowForge",
+  "name": "Stackless",
+  "short_name": "Stackless",
   "description": "Build full-stack apps without writing backend code.",
   "start_url": "/",
   "display": "standalone",

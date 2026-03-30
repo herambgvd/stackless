@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     )
 
     # MongoDB
-    MONGODB_URI: str = "mongodb://localhost:27017/flowforge?authSource=admin"
-    MONGODB_DB_NAME: str = "flowforge"
+    MONGODB_URI: str = "mongodb://localhost:27017/stackless?authSource=admin"
+    MONGODB_DB_NAME: str = "stackless"
     MONGODB_USERNAME: str = "admin"
     MONGODB_PASSWORD: str = "password"
 
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     RUSTFS_ENDPOINT: str = "localhost:9000"
     RUSTFS_ACCESS_KEY: str = "rustfsadmin"
     RUSTFS_SECRET_KEY: str = "rustfspass123"
-    RUSTFS_BUCKET_NAME: str = "flowforge-uploads"
+    RUSTFS_BUCKET_NAME: str = "stackless-uploads"
     RUSTFS_USE_SSL: bool = False
 
     # CORS
@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_USE_TLS: bool = True
-    EMAIL_FROM: str = "FlowForge <noreply@flowforge.io>"
+    EMAIL_FROM: str = "Stackless <noreply@stackless.cloud>"
     # Shared secret for validating inbound email-bounce webhook payloads.
     # Set this to a random string and configure the same value in your SMTP provider.
     # Leave empty to accept bounce events without signature validation (not recommended in production).

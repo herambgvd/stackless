@@ -8,7 +8,7 @@ export function CTABanner() {
           Ready to automate your operations?
         </h2>
         <p className="mt-4 text-lg text-blue-100 max-w-xl mx-auto">
-          Join 500+ businesses running smarter on FlowForge.
+          Join 500+ businesses running smarter on Stackless.
         </p>
 
         {/* Buttons */}
@@ -21,7 +21,7 @@ export function CTABanner() {
             <span aria-hidden="true">→</span>
           </Link>
           <a
-            href="mailto:sales@flowforge.io"
+            href="mailto:sales@stackless.cloud"
             className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-transparent border border-white/40 hover:border-white/70 hover:bg-white/5 text-white font-semibold text-base transition-colors duration-150"
           >
             Talk to us

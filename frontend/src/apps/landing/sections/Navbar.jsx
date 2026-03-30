@@ -28,7 +28,7 @@ export function Navbar() {
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600">
             <Zap className="w-4 h-4 text-white" fill="white" />
           </div>
-          <span className="text-lg font-bold text-slate-900 tracking-tight">FlowForge</span>
+          <span className="text-lg font-bold text-slate-900 tracking-tight">Stackless</span>
         </Link>
 
         {/* Desktop Nav Links */}

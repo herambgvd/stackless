@@ -21,7 +21,7 @@ export const useAuthStore = create()(
       },
     }),
     {
-      name: "flowforge-auth",
+      name: "stackless-auth",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,

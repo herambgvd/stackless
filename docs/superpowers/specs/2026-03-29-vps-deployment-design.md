@@ -1,4 +1,4 @@
-# FlowForge VPS Deployment Design
+# Stackless VPS Deployment Design
 **Date:** 2026-03-29
 **Target:** Hostinger KVM 2 VPS (8GB RAM, 2 CPU, 100GB storage)
 **Domains:** `stackless.cloud` (frontend), `api.stackless.cloud` (backend)
@@ -18,7 +18,7 @@ Internet
     │       ├── stackless.cloud       ──► frontend container (127.0.0.1:3000)
     │       └── api.stackless.cloud  ──► backend container  (127.0.0.1:8000)
     │
-    └── Docker Internal Network (flowforge-net)
+    └── Docker Internal Network (stackless-net)
             ├── frontend      → 127.0.0.1:3000  (Nginx serves React SPA)
             ├── backend       → 127.0.0.1:8000  (FastAPI/Uvicorn)
             ├── celery-worker   (no host port)
@@ -103,7 +103,7 @@ ALLOWED_ORIGINS=https://stackless.cloud
 # Tenants add their own OpenAI/Anthropic keys via the tenant settings
 
 # MongoDB DB name
-MONGODB_DB_NAME=flowforge
+MONGODB_DB_NAME=stackless
 
 # Email (optional, for notifications)
 SMTP_HOST=

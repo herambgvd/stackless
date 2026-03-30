@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Create a Super Admin user for FlowForge platform.
+Create a Super Admin user for Stackless platform.
 
 Usage:
     cd backend
@@ -59,7 +59,7 @@ def validate_email(email: str) -> bool:
 
 async def main():
     print("=" * 50)
-    print("  FlowForge — Create Super Admin")
+    print("  Stackless — Create Super Admin")
     print("=" * 50)
     print()
 
@@ -120,7 +120,7 @@ async def main():
     print(f"  Name:     {full_name}")
     print(f"  Superuser: True")
     print()
-    print("You can now log in at the FlowForge dashboard.")
+    print("You can now log in at the Stackless dashboard.")
     print("As Super Admin, you'll see Organizations & AI Settings in the sidebar.")
 
 

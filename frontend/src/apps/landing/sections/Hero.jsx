@@ -21,7 +21,7 @@ function ProductMockup() {
         <div className="w-3 h-3 rounded-full bg-yellow-400" />
         <div className="w-3 h-3 rounded-full bg-green-400" />
         <div className="flex-1 mx-4 bg-white rounded-md px-3 py-1 text-xs text-slate-400 border border-slate-200 font-mono">
-          app.flowforge.io/dashboard
+          app.stackless.cloud/dashboard
         </div>
       </div>
 
@@ -33,7 +33,7 @@ function ProductMockup() {
             <div className="w-5 h-5 bg-blue-500 rounded flex items-center justify-center">
               <span className="text-white text-xs font-bold">F</span>
             </div>
-            <span className="text-white text-xs font-semibold">FlowForge</span>
+            <span className="text-white text-xs font-semibold">Stackless</span>
           </div>
           {[
             { icon: LayoutDashboard, label: "Dashboard", active: true },

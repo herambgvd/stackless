@@ -29,7 +29,7 @@ export function WelcomeStep({ onNext }) {
 
       {/* Headline */}
       <h1 className="text-3xl font-bold text-slate-900 mb-3 leading-tight">
-        Welcome to FlowForge, {firstName}! 🎉
+        Welcome to Stackless, {firstName}! 🎉
       </h1>
 
       {/* Subtext */}

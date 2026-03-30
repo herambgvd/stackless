@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi import status
 
 
-class FlowForgeException(Exception):
-    """Base exception for all FlowForge errors."""
+class StacklessException(Exception):
+    """Base exception for all Stackless errors."""
 
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     code: str = "INTERNAL_ERROR"
@@ -16,7 +16,7 @@ class FlowForgeException(Exception):
         super().__init__(self.detail)
 
 
-class NotFoundError(FlowForgeException):
+class NotFoundError(StacklessException):
     status_code = status.HTTP_404_NOT_FOUND
     code = "NOT_FOUND"
 
@@ -27,7 +27,7 @@ class NotFoundError(FlowForgeException):
         super().__init__(detail=detail)
 
 
-class ValidationError(FlowForgeException):
+class ValidationError(StacklessException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     code = "VALIDATION_ERROR"
 
@@ -35,7 +35,7 @@ class ValidationError(FlowForgeException):
         super().__init__(detail=detail)
 
 
-class UnauthorizedError(FlowForgeException):
+class UnauthorizedError(StacklessException):
     status_code = status.HTTP_401_UNAUTHORIZED
     code = "UNAUTHORIZED"
 
@@ -43,7 +43,7 @@ class UnauthorizedError(FlowForgeException):
         super().__init__(detail=detail)
 
 
-class ForbiddenError(FlowForgeException):
+class ForbiddenError(StacklessException):
     status_code = status.HTTP_403_FORBIDDEN
     code = "FORBIDDEN"
 
@@ -51,7 +51,7 @@ class ForbiddenError(FlowForgeException):
         super().__init__(detail=detail)
 
 
-class ConflictError(FlowForgeException):
+class ConflictError(StacklessException):
     status_code = status.HTTP_409_CONFLICT
     code = "CONFLICT"
 
@@ -59,7 +59,7 @@ class ConflictError(FlowForgeException):
         super().__init__(detail=detail)
 
 
-class BadRequestError(FlowForgeException):
+class BadRequestError(StacklessException):
     status_code = 400
     code = "BAD_REQUEST"
 
@@ -67,16 +67,16 @@ class BadRequestError(FlowForgeException):
         super().__init__(detail=detail)
 
 
-class RuleEvaluationError(FlowForgeException):
+class RuleEvaluationError(StacklessException):
     status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     code = "RULE_EVALUATION_ERROR"
 
 
-class WorkflowExecutionError(FlowForgeException):
+class WorkflowExecutionError(StacklessException):
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
     code = "WORKFLOW_EXECUTION_ERROR"
 
 
-class ApprovalError(FlowForgeException):
+class ApprovalError(StacklessException):
     status_code = status.HTTP_400_BAD_REQUEST
     code = "APPROVAL_ERROR"

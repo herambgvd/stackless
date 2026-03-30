@@ -81,7 +81,7 @@ export function LoginForm() {
           </div>
         </div>
         <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-        <CardDescription>Sign in to your FlowForge account</CardDescription>
+        <CardDescription>Sign in to your Stackless account</CardDescription>
       </CardHeader>
 
       <CardContent>

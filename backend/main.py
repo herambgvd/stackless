@@ -14,11 +14,11 @@ from core.config import get_settings
 from core.database import init_db
 from core.exceptions import (
     ConflictError,
-    FlowForgeException,
+    StacklessException,
     ForbiddenError,
     NotFoundError,
     UnauthorizedError,
-    ValidationError as FlowForgeValidationError,
+    ValidationError as StacklessValidationError,
 )
 from core.middleware import CSRFMiddleware, RateLimitMiddleware, RequestLogMiddleware, SecurityHeadersMiddleware, TenantContextMiddleware
 
@@ -78,18 +78,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "SECRET_KEY and CSRF_SECRET must be changed from their defaults before running in production."
             )
 
-    log.info("Starting FlowForge backend", environment=settings.ENVIRONMENT)
+    log.info("Starting Stackless backend", environment=settings.ENVIRONMENT)
     await init_db()
     log.info("Database initialised")
     yield
-    log.info("Shutting down FlowForge backend")
+    log.info("Shutting down Stackless backend")
 
 
 def create_application() -> FastAPI:
     app = FastAPI(
-        title="FlowForge API",
+        title="Stackless API",
         description=(
-            "FlowForge is a no-code full-stack platform. "
+            "Stackless is a no-code full-stack platform. "
             "Build apps, models, rules, approval flows, and workflows — without writing backend code."
         ),
         version="1.0.0",
@@ -176,8 +176,8 @@ def create_application() -> FastAPI:
     app.include_router(packages_router, prefix=f"{prefix}/packages", tags=["Packages"])
 
     # ── Exception handlers ────────────────────────────────────────────────────
-    @app.exception_handler(FlowForgeException)
-    async def flowforge_exception_handler(request: Request, exc: FlowForgeException) -> JSONResponse:
+    @app.exception_handler(StacklessException)
+    async def stackless_exception_handler(request: Request, exc: StacklessException) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": exc.detail, "code": exc.code},
@@ -212,8 +212,8 @@ def create_application() -> FastAPI:
             content={"detail": exc.detail, "code": exc.code},
         )
 
-    @app.exception_handler(FlowForgeValidationError)
-    async def validation_handler(request: Request, exc: FlowForgeValidationError) -> JSONResponse:
+    @app.exception_handler(StacklessValidationError)
+    async def validation_handler(request: Request, exc: StacklessValidationError) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={"detail": exc.detail, "code": exc.code},

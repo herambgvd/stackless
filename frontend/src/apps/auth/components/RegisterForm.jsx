@@ -40,7 +40,7 @@ export function RegisterForm() {
           </div>
         </div>
         <CardTitle className="text-2xl font-bold">Create account</CardTitle>
-        <CardDescription>Get started with FlowForge</CardDescription>
+        <CardDescription>Get started with Stackless</CardDescription>
       </CardHeader>
 
       <CardContent>

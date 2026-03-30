@@ -1,5 +1,5 @@
 /**
- * FlowForge Service Worker
+ * Stackless Service Worker
  *
  * Strategy:
  *  - API requests (/api/*): network-first, fall back to cached if offline
@@ -9,7 +9,7 @@
  */
 
 const CACHE_VERSION = 2;
-const CACHE_NAME = `flowforge-v${CACHE_VERSION}`;
+const CACHE_NAME = `stackless-v${CACHE_VERSION}`;
 const STATIC_ASSETS = ["/", "/index.html"];
 
 // Pattern to detect Vite hashed assets (e.g. /assets/index-Dg3k1a.js)
@@ -159,7 +159,7 @@ async function syncOfflineQueue() {
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open("flowforge-offline", 1);
+    const req = indexedDB.open("stackless-offline", 1);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains("offline-queue")) {
@@ -189,10 +189,10 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data.json();
   } catch {
-    data = { title: "FlowForge", body: event.data.text() };
+    data = { title: "Stackless", body: event.data.text() };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || "FlowForge", {
+    self.registration.showNotification(data.title || "Stackless", {
       body: data.body || "",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",

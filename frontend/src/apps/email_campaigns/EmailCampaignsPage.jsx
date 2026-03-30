@@ -115,7 +115,7 @@ function CampaignDialog({ open, onClose, edit }) {
             </div>
             <div>
               <Label className="text-xs">From name</Label>
-              <Input value={form.from_name} onChange={e => set("from_name", e.target.value)} className="mt-1 h-8 text-sm" placeholder="FlowForge Team" />
+              <Input value={form.from_name} onChange={e => set("from_name", e.target.value)} className="mt-1 h-8 text-sm" placeholder="Stackless Team" />
             </div>
             <div>
               <Label className="text-xs">From email</Label>

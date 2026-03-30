@@ -1048,7 +1048,7 @@ export function FlowDesignerPage() {
   const onDrop = useCallback(
     (e) => {
       e.preventDefault();
-      const raw = e.dataTransfer.getData("application/flowforge-node");
+      const raw = e.dataTransfer.getData("application/stackless-node");
       if (!raw) return;
       const nodeData = JSON.parse(raw);
       const bounds = reactFlowWrapper.current?.getBoundingClientRect();

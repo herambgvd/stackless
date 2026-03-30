@@ -9,7 +9,7 @@ export const useTenantStore = create()(
       clearTenant: () => set({ currentTenant: null }),
     }),
     {
-      name: "flowforge-tenant",
+      name: "stackless-tenant",
       storage: createJSONStorage(() => localStorage),
     }
   )

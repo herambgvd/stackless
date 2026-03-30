@@ -340,7 +340,7 @@ export function Sidebar({ collapsed, onToggle }) {
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
               <Zap className="h-4 w-4" />
             </div>
-            <span className="font-semibold text-foreground text-base flex-1">FlowForge</span>
+            <span className="font-semibold text-foreground text-base flex-1">Stackless</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

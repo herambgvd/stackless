@@ -184,7 +184,7 @@ async def materialise_blueprint(
     user_id: str,
 ) -> GenerateResponse:
     """
-    Parse the stored blueprint and create the actual app in FlowForge
+    Parse the stored blueprint and create the actual app in Stackless
     by calling the existing schema_engine service layer directly.
     """
     session = await repo.get_session(session_id, tenant_id)

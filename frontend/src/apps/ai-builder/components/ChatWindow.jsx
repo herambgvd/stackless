@@ -35,7 +35,7 @@ function MessageBubble({ role, content, isStreaming }) {
 
 const WELCOME_MESSAGE = {
   role: "assistant",
-  content: "Hi! I'm FlowForge AI. Tell me about the app you want to build — what data do you need to track, who will use it, and what should happen after someone submits a form? The more detail the better!",
+  content: "Hi! I'm Stackless AI. Tell me about the app you want to build — what data do you need to track, who will use it, and what should happen after someone submits a form? The more detail the better!",
 };
 
 export function ChatWindow({ sessionId, onSessionCreated }) {

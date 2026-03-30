@@ -184,7 +184,7 @@ export function OnboardingWizard() {
                 <Workflow className="w-4 h-4 text-white" />
               </div>
               <span className="font-bold text-slate-900 text-base tracking-tight">
-                FlowForge
+                Stackless
               </span>
             </div>
 
@@ -301,7 +301,7 @@ export function OnboardingWizard() {
 
       {/* Fine print */}
       <p className="mt-5 text-xs text-slate-400 text-center">
-        FlowForge &mdash; No-code platform for modern businesses
+        Stackless &mdash; No-code platform for modern businesses
       </p>
     </div>
   );

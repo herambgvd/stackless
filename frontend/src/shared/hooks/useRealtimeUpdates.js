@@ -1,7 +1,7 @@
 /**
  * useRealtimeUpdates
  *
- * Connects to the FlowForge WebSocket endpoint for the current tenant and
+ * Connects to the Stackless WebSocket endpoint for the current tenant and
  * invalidates TanStack Query caches when `doc_changed` events are received.
  *
  * The hook is designed to run once in the authenticated layout so all pages

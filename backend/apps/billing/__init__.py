@@ -1,1 +1,1 @@
-# Billing module — Stripe-backed subscription management for FlowForge tenants.
+# Billing module — Stripe-backed subscription management for Stackless tenants.

@@ -181,7 +181,7 @@ async def setup_2fa(current_user=Depends(get_current_active_user)):
 
     secret = pyotp.random_base32()
     totp = pyotp.TOTP(secret)
-    qr_uri = totp.provisioning_uri(name=current_user.email, issuer_name="FlowForge")
+    qr_uri = totp.provisioning_uri(name=current_user.email, issuer_name="Stackless")
 
     # Generate QR code as base64 PNG
     img = qrcode.make(qr_uri)
@@ -236,7 +236,7 @@ async def forgot_password(payload: ForgotPasswordRequest):
             template_id=str(_tmpl.id) if _tmpl else None,
             context={"full_name": user.full_name, "reset_link": reset_link},
             tenant_id=user.tenant_id or "",
-            subject=_tmpl.subject_template if _tmpl else "Reset your FlowForge password",
+            subject=_tmpl.subject_template if _tmpl else "Reset your Stackless password",
             body=None if _tmpl else (
                 f"Hello {user.full_name},\n\n"
                 f"Click the link below to reset your password (expires in 1 hour):\n\n"
@@ -398,10 +398,10 @@ async def invite_user(
             template_id=str(_inv_tmpl.id) if _inv_tmpl else None,
             context=_inv_ctx,
             tenant_id=tenant_id,
-            subject=_inv_tmpl.subject_template if _inv_tmpl else "You have been invited to FlowForge",
+            subject=_inv_tmpl.subject_template if _inv_tmpl else "You have been invited to Stackless",
             body=None if _inv_tmpl else (
                 f"Hello {payload.full_name or payload.email},\n\n"
-                f"You have been invited to join a FlowForge workspace.\n\n"
+                f"You have been invited to join a Stackless workspace.\n\n"
                 f"Email: {payload.email}\n"
                 f"Temporary password: {temp_password}\n\n"
                 f"Please log in and change your password immediately."
@@ -512,7 +512,7 @@ async def google_login():
 
 @router.get("/google/callback", response_model=TokenResponse)
 async def google_callback(code: str):
-    """Exchange Google auth code for FlowForge tokens."""
+    """Exchange Google auth code for Stackless tokens."""
     import httpx
     from core.config import get_settings as _get_settings
 
@@ -573,7 +573,7 @@ async def github_login():
 
 @router.get("/github/callback", response_model=TokenResponse)
 async def github_callback(code: str):
-    """Exchange GitHub auth code for FlowForge tokens."""
+    """Exchange GitHub auth code for Stackless tokens."""
     import httpx
     from core.config import get_settings as _get_settings
 

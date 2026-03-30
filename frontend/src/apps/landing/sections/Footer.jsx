@@ -57,7 +57,7 @@ export function Footer() {
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600">
                 <Zap className="w-4 h-4 text-white" fill="white" />
               </div>
-              <span className="text-white font-bold text-lg tracking-tight">FlowForge</span>
+              <span className="text-white font-bold text-lg tracking-tight">Stackless</span>
             </Link>
             <p className="text-sm text-slate-500 leading-relaxed max-w-xs">
               The no-code platform for modern operations teams.
@@ -89,7 +89,7 @@ export function Footer() {
         {/* Bottom border */}
         <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-slate-500">
-            &copy; 2026 FlowForge. All rights reserved.
+            &copy; 2026 Stackless. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             {socialLinks.map(({ icon: Icon, label, href }) => (

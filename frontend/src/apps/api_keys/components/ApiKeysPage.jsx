@@ -63,7 +63,7 @@ function CreateKeyDialog({ open, onClose }) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Create API Key</DialogTitle>
-          <DialogDescription>API keys allow programmatic access to FlowForge.</DialogDescription>
+          <DialogDescription>API keys allow programmatic access to Stackless.</DialogDescription>
         </DialogHeader>
 
         {createdKey ? (
@@ -226,7 +226,7 @@ export function ApiKeysPage() {
         <div>
           <h1 className="text-xl font-semibold">API Keys</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Create API keys to access FlowForge programmatically. Use the <code className="text-xs bg-muted px-1 rounded">Authorization: Bearer ffk_...</code> header.
+            Create API keys to access Stackless programmatically. Use the <code className="text-xs bg-muted px-1 rounded">Authorization: Bearer ffk_...</code> header.
           </p>
         </div>
         <Button size="sm" onClick={() => setShowCreate(true)}>

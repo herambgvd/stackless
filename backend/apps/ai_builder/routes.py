@@ -112,7 +112,7 @@ async def generate_app(
 ):
     """
     Parse the blueprint from the given session and create the full app
-    (AppDefinition + ModelDefinitions) in FlowForge.
+    (AppDefinition + ModelDefinitions) in Stackless.
     """
     return await service.materialise_blueprint(
         session_id=payload.session_id,

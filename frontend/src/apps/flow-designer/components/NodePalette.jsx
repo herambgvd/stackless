@@ -78,7 +78,7 @@ const iconColorMap = {
 
 export function NodePalette({ onAddNode }) {
   const handleDragStart = (e, node) => {
-    e.dataTransfer.setData("application/flowforge-node", JSON.stringify(node));
+    e.dataTransfer.setData("application/stackless-node", JSON.stringify(node));
     e.dataTransfer.effectAllowed = "move";
   };
 

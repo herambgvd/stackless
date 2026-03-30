@@ -1,7 +1,7 @@
 const testimonials = [
   {
     quote:
-      "We replaced Airtable, Zapier, and a custom spreadsheet nightmare with FlowForge in one weekend. The automation alone saves us 20 hours a week.",
+      "We replaced Airtable, Zapier, and a custom spreadsheet nightmare with Stackless in one weekend. The automation alone saves us 20 hours a week.",
     author: "Ravi Mehta",
     role: "Operations Director",
     company: "BuildMart",

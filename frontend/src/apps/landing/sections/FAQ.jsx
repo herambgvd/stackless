@@ -3,19 +3,19 @@ import { Plus, Minus } from "lucide-react";
 
 const faqs = [
   {
-    question: "Is FlowForge really free to start?",
+    question: "Is Stackless really free to start?",
     answer:
       "Yes, our free plan includes 3 apps, 500 records, and 1 workflow — no credit card required. You can get started immediately and upgrade only when you need more capacity.",
   },
   {
     question: "How is this different from Airtable or Notion?",
     answer:
-      "FlowForge is built for operations automation. While Airtable and Notion are great for data, we add a full workflow engine, approval flows, AI builder, and team collaboration in one platform. We're designed to replace multiple tools, not just be another database.",
+      "Stackless is built for operations automation. While Airtable and Notion are great for data, we add a full workflow engine, approval flows, AI builder, and team collaboration in one platform. We're designed to replace multiple tools, not just be another database.",
   },
   {
-    question: "Do I need a developer to set up FlowForge?",
+    question: "Do I need a developer to set up Stackless?",
     answer:
-      "No. FlowForge is designed for operations and business teams. If you can use a spreadsheet, you can build on FlowForge. Our drag-and-drop interface means no coding knowledge is required at any stage.",
+      "No. Stackless is designed for operations and business teams. If you can use a spreadsheet, you can build on Stackless. Our drag-and-drop interface means no coding knowledge is required at any stage.",
   },
   {
     question: "Can I migrate my existing data?",

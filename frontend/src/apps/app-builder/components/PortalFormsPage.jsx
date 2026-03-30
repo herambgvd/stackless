@@ -319,7 +319,7 @@ function EmbedDialog({ open, onClose, publicUrl }) {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const fullUrl = `${origin}${publicUrl}`;
   const iframeCode = `<iframe\n  src="${fullUrl}"\n  width="100%"\n  height="600"\n  frameborder="0"\n  allow="clipboard-write"\n  style="border:none;border-radius:8px;"\n></iframe>`;
-  const scriptCode = `<div id="flowforge-form"></div>\n<script>\n  (function() {\n    var el = document.getElementById('flowforge-form');\n    var iframe = document.createElement('iframe');\n    iframe.src = "${fullUrl}";\n    iframe.style = "width:100%;height:600px;border:none;border-radius:8px;";\n    iframe.allow = "clipboard-write";\n    el.appendChild(iframe);\n    window.addEventListener('message', function(e) {\n      if (e.data && e.data.type === 'flowforge:resize') {\n        iframe.style.height = e.data.height + 'px';\n      }\n    });\n  })();\n<\/script>`;
+  const scriptCode = `<div id="stackless-form"></div>\n<script>\n  (function() {\n    var el = document.getElementById('stackless-form');\n    var iframe = document.createElement('iframe');\n    iframe.src = "${fullUrl}";\n    iframe.style = "width:100%;height:600px;border:none;border-radius:8px;";\n    iframe.allow = "clipboard-write";\n    el.appendChild(iframe);\n    window.addEventListener('message', function(e) {\n      if (e.data && e.data.type === 'stackless:resize') {\n        iframe.style.height = e.data.height + 'px';\n      }\n    });\n  })();\n<\/script>`;
 
   function copyCode(code) {
     navigator.clipboard.writeText(code);

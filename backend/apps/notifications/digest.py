@@ -125,7 +125,7 @@ async def send_digest_for_user(user_id: str, tenant_id: str, user_email: str, us
 
         await _email.send(
             recipient=user_email,
-            subject_template="Your daily summary — FlowForge",
+            subject_template="Your daily summary — Stackless",
             body_template=body,
             context={},
         )

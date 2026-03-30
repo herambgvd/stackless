@@ -66,7 +66,7 @@ export function useOnlineStatus() {
 // ── Offline queue ─────────────────────────────────────────────────────────────
 // Enqueue failed mutation requests so they're replayed when connectivity returns.
 
-const DB_NAME = 'flowforge-offline';
+const DB_NAME = 'stackless-offline';
 const STORE_NAME = 'offline-queue';
 
 function openDB() {

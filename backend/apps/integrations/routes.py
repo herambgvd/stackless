@@ -105,7 +105,7 @@ async def test_integration(
             from apps.integrations.connectors import send_slack_message
             result = await send_slack_message(
                 item.credentials,
-                {"message": "FlowForge integration test — this is a test message."},
+                {"message": "Stackless integration test — this is a test message."},
                 {},
             )
         elif item.provider == "smtp":
@@ -113,18 +113,18 @@ async def test_integration(
             to = item.credentials.get("from_email") or item.credentials.get("username", "")
             result = await send_email_smtp(
                 item.credentials,
-                {"to": to, "subject": "FlowForge Integration Test", "body": "This is a test email from FlowForge."},
+                {"to": to, "subject": "Stackless Integration Test", "body": "This is a test email from Stackless."},
                 {},
             )
         elif item.provider == "generic_webhook":
             from apps.integrations.connectors import send_generic_webhook
-            result = await send_generic_webhook(item.credentials, {}, {"test": True, "source": "flowforge"})
+            result = await send_generic_webhook(item.credentials, {}, {"test": True, "source": "stackless"})
         else:
             return {"status": "skipped", "message": f"Test not supported for provider '{item.provider}'."}
         return {"status": "ok", "result": result}
     except Exception as exc:
-        from core.exceptions import ValidationError as FlowForgeValidationError
-        raise FlowForgeValidationError(f"Integration test failed: {str(exc)}")
+        from core.exceptions import ValidationError as StacklessValidationError
+        raise StacklessValidationError(f"Integration test failed: {str(exc)}")
 
 
 @router.get("/integrations/providers", response_model=list[dict])

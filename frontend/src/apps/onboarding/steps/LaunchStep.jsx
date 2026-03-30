@@ -113,7 +113,7 @@ export function LaunchStep({ businessType, selectedTemplate, inviteEmails, onFin
           </span>
           <div>
             <p className="text-sm font-semibold text-slate-700">Watch a 2-min tour</p>
-            <p className="text-xs text-slate-400">See how FlowForge works</p>
+            <p className="text-xs text-slate-400">See how Stackless works</p>
           </div>
           <svg
             className="w-4 h-4 text-slate-300 ml-auto"

@@ -116,7 +116,7 @@ export function AppShell() {
         {canInstall && !installDismissed && (
           <div className="flex items-center gap-3 bg-primary/5 border-b border-primary/10 px-6 py-2 text-sm">
             <Download className="h-4 w-4 text-primary shrink-0" />
-            <span className="flex-1 text-foreground">Install FlowForge as an app for a better mobile experience.</span>
+            <span className="flex-1 text-foreground">Install Stackless as an app for a better mobile experience.</span>
             <button
               onClick={install}
               className="text-primary font-medium hover:underline"
