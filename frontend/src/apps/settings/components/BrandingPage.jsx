@@ -37,9 +37,7 @@ export function BrandingPage() {
 
   const saveMut = useMutation({
     mutationFn: () =>
-      apiClient.put(`/tenants/${tenantId}`, {
-        settings: { branding: current },
-      }).then((r) => r.data),
+      apiClient.put(`/tenants/${tenantId}`, { branding: current }).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tenant", tenantId] });
       setForm(null);

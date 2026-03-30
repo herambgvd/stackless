@@ -99,8 +99,16 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # ── CORS ──────────────────────────────────────────────────────────────────
+    # ── Middleware ─────────────────────────────────────────────────────────────
+    # Starlette middleware is a LIFO stack: first added = innermost (closest to app).
+    # CORSMiddleware must be outermost so it adds CORS headers to ALL responses,
+    # including 4xx/5xx errors returned by inner middleware. Add it LAST.
     origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(CSRFMiddleware)
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(TenantContextMiddleware)
+    app.add_middleware(RequestLogMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -108,13 +116,6 @@ def create_application() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    # ── Custom middleware ──────────────────────────────────────────────────────
-    app.add_middleware(SecurityHeadersMiddleware)
-    app.add_middleware(CSRFMiddleware)
-    app.add_middleware(RateLimitMiddleware)
-    app.add_middleware(TenantContextMiddleware)
-    app.add_middleware(RequestLogMiddleware)
 
     # ── Prometheus metrics ────────────────────────────────────────────────────
     Instrumentator().instrument(app).expose(app, endpoint="/metrics")
