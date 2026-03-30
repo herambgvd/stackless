@@ -35,8 +35,9 @@ settings = get_settings()
 
 
 async def init_db():
+    from core.database import _build_mongo_uri
     client = motor.motor_asyncio.AsyncIOMotorClient(
-        settings.MONGODB_URI, serverSelectionTimeoutMS=5000
+        _build_mongo_uri(), serverSelectionTimeoutMS=5000
     )
     database = client[settings.MONGODB_DB_NAME]
     await init_beanie(
