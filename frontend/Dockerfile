@@ -1,6 +1,9 @@
 # ─── Stage 1: Build ────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 
+ARG VITE_API_URL=https://api.stackless.cloud/api/v1
+ENV VITE_API_URL=$VITE_API_URL
+
 WORKDIR /app
 
 COPY package.json package-lock.json* ./

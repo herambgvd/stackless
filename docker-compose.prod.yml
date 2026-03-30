@@ -218,6 +218,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://${API_DOMAIN:-api.stackless.cloud}/api/v1
     image: flowforge-frontend:latest
     container_name: flowforge-frontend
     restart: unless-stopped
