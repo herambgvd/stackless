@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+import time
+from collections import defaultdict
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from apps.auth.schemas import (
     AdminUserUpdate,
@@ -34,6 +36,24 @@ from core.exceptions import ConflictError, NotFoundError, UnauthorizedError
 from core.security import hash_password, verify_password
 
 router = APIRouter()
+
+# ── Simple in-process rate limiter for password reset ─────────────────────────
+_reset_attempts: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_password_reset_rate_limit(email: str) -> None:
+    """Allow at most 5 reset requests per email per hour."""
+    now = time.time()
+    window = 3600.0
+    max_attempts = 5
+    recent = [t for t in _reset_attempts[email] if now - t < window]
+    _reset_attempts[email] = recent
+    if len(recent) >= max_attempts:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many password reset attempts. Please wait before trying again.",
+        )
+    _reset_attempts[email].append(now)
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -196,6 +216,8 @@ async def forgot_password(payload: ForgotPasswordRequest):
     from core.security import generate_password_reset_token
     from apps.notifications.tasks import send_notification_task
 
+    _check_password_reset_rate_limit(payload.email)
+
     user = await get_user_by_email(payload.email)
     if not user or not user.is_active:
         return  # silent success
@@ -206,14 +228,16 @@ async def forgot_password(payload: ForgotPasswordRequest):
     reset_link = f"{_settings.APP_BASE_URL}/reset-password?token={token}"
 
     try:
+        from apps.notifications.repository import get_template_by_slug
+        _tmpl = await get_template_by_slug("password-reset", user.tenant_id or "")
         send_notification_task.delay(
             channel="email",
             recipient=payload.email,
-            template_id=None,
+            template_id=str(_tmpl.id) if _tmpl else None,
             context={"full_name": user.full_name, "reset_link": reset_link},
             tenant_id=user.tenant_id or "",
-            subject="Reset your FlowForge password",
-            body=(
+            subject=_tmpl.subject_template if _tmpl else "Reset your FlowForge password",
+            body=None if _tmpl else (
                 f"Hello {user.full_name},\n\n"
                 f"Click the link below to reset your password (expires in 1 hour):\n\n"
                 f"{reset_link}\n\n"
@@ -365,17 +389,17 @@ async def invite_user(
     # Queue invitation email (best-effort — won't fail the request if SMTP not configured)
     try:
         from apps.notifications.tasks import send_notification_task
+        from apps.notifications.repository import get_template_by_slug
+        _inv_ctx = {"full_name": payload.full_name or payload.email, "temp_password": temp_password}
+        _inv_tmpl = await get_template_by_slug("user-invite", tenant_id)
         send_notification_task.delay(
             channel="email",
             recipient=payload.email,
-            template_id=None,
-            context={
-                "full_name": payload.full_name or payload.email,
-                "temp_password": temp_password,
-            },
+            template_id=str(_inv_tmpl.id) if _inv_tmpl else None,
+            context=_inv_ctx,
             tenant_id=tenant_id,
-            subject="You have been invited to FlowForge",
-            body=(
+            subject=_inv_tmpl.subject_template if _inv_tmpl else "You have been invited to FlowForge",
+            body=None if _inv_tmpl else (
                 f"Hello {payload.full_name or payload.email},\n\n"
                 f"You have been invited to join a FlowForge workspace.\n\n"
                 f"Email: {payload.email}\n"

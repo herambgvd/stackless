@@ -16,6 +16,22 @@ async def get_template_by_id(template_id: str) -> Optional[NotificationTemplate]
     return await NotificationTemplate.get(oid)
 
 
+async def get_template_by_slug(slug: str, tenant_id: str) -> Optional[NotificationTemplate]:
+    """Look up an active template by slug — tenant-specific first, then global fallback."""
+    tmpl = await NotificationTemplate.find_one(
+        NotificationTemplate.slug == slug,
+        NotificationTemplate.tenant_id == tenant_id,
+        NotificationTemplate.is_active == True,  # noqa: E712
+    )
+    if tmpl:
+        return tmpl
+    return await NotificationTemplate.find_one(
+        NotificationTemplate.slug == slug,
+        NotificationTemplate.tenant_id == "global",
+        NotificationTemplate.is_active == True,  # noqa: E712
+    )
+
+
 async def list_templates(tenant_id: str) -> list[NotificationTemplate]:
     return await NotificationTemplate.find(NotificationTemplate.tenant_id == tenant_id).to_list()
 

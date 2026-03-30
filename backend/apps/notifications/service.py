@@ -41,7 +41,7 @@ async def send_notification(
         if channel == NotificationChannel.EMAIL:
             from apps.notifications.channels.email import EmailChannel
 
-            await EmailChannel().send(
+            await EmailChannel(tenant_id=tenant_id or None).send(
                 recipient=recipient,
                 subject_template=subject_tmpl,
                 body_template=body_tmpl,

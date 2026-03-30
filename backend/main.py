@@ -61,6 +61,7 @@ from apps.desk_chat.routes import router as desk_chat_router
 from apps.calendar.routes import router as calendar_router
 from apps.billing.routes import router as billing_router
 from apps.usage.routes import router as usage_router
+from apps.packages.routes import router as packages_router
 
 log = structlog.get_logger(__name__)
 settings = get_settings()
@@ -170,6 +171,8 @@ def create_application() -> FastAPI:
     app.include_router(billing_router, prefix=f"{prefix}/billing", tags=["Billing"])
     # Usage metering & analytics
     app.include_router(usage_router, prefix=f"{prefix}/usage", tags=["Usage"])
+    # Subscription packages (plan management)
+    app.include_router(packages_router, prefix=f"{prefix}/packages", tags=["Packages"])
 
     # ── Exception handlers ────────────────────────────────────────────────────
     @app.exception_handler(FlowForgeException)

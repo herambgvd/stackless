@@ -85,6 +85,7 @@ async def init_db() -> None:
     from apps.calendar.models import CalendarEvent
     from apps.billing.models import Subscription
     from apps.usage.models import TenantUsageSnapshot
+    from apps.packages.models import Package
 
     client = get_motor_client()
     database = client[settings.MONGODB_DB_NAME]
@@ -142,6 +143,7 @@ async def init_db() -> None:
             CalendarEvent,
             Subscription,
             TenantUsageSnapshot,
+            Package,
         ],
     )
 

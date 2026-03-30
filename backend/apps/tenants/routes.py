@@ -7,9 +7,15 @@ from apps.tenants.repository import (
     get_tenant_by_id,
     list_tenants,
 )
-from apps.tenants.schemas import TenantCreate, TenantResponse, TenantStatsResponse, TenantUpdate
-from apps.tenants.service import create_new_tenant, get_tenant_stats, update_tenant_details
-from core.dependencies import get_current_active_user, require_role, require_superuser
+from apps.tenants.schemas import (
+    TenantCreate, TenantResponse, TenantStatsResponse, TenantUpdate,
+    TenantEmailConfigUpdate, TenantEmailConfigResponse, TenantEmailTestRequest,
+)
+from apps.tenants.service import (
+    create_new_tenant, get_tenant_stats, update_tenant_details,
+    get_email_config, update_email_config, reset_email_config,
+)
+from core.dependencies import get_current_active_user, get_tenant_id, require_role, require_superuser
 from core.exceptions import ForbiddenError, NotFoundError
 
 router = APIRouter()
@@ -113,6 +119,75 @@ async def delete_tenant_endpoint(
     deleted = await delete_tenant(tenant_id)
     if not deleted:
         raise NotFoundError("Tenant", tenant_id)
+
+
+@router.get("/email-config", response_model=TenantEmailConfigResponse)
+async def get_tenant_email_config(
+    tenant_id: str = Depends(get_tenant_id),
+    _=Depends(require_role(["admin"])),
+):
+    """Get the current tenant's email configuration."""
+    cfg = await get_email_config(tenant_id)
+    return TenantEmailConfigResponse(
+        smtp_host=cfg.smtp_host,
+        smtp_port=cfg.smtp_port,
+        smtp_username=cfg.smtp_username,
+        smtp_password="***" if cfg.smtp_password else None,
+        email_from=cfg.email_from,
+        email_from_name=cfg.email_from_name,
+        use_tls=cfg.use_tls,
+        is_configured=cfg.is_configured,
+    )
+
+
+@router.put("/email-config", response_model=TenantEmailConfigResponse)
+async def update_tenant_email_config(
+    payload: TenantEmailConfigUpdate,
+    tenant_id: str = Depends(get_tenant_id),
+    _=Depends(require_role(["admin"])),
+):
+    """Update the current tenant's SMTP email configuration."""
+    tenant = await update_email_config(tenant_id, payload)
+    cfg = tenant.email_config
+    return TenantEmailConfigResponse(
+        smtp_host=cfg.smtp_host,
+        smtp_port=cfg.smtp_port,
+        smtp_username=cfg.smtp_username,
+        smtp_password="***" if cfg.smtp_password else None,
+        email_from=cfg.email_from,
+        email_from_name=cfg.email_from_name,
+        use_tls=cfg.use_tls,
+        is_configured=cfg.is_configured,
+    )
+
+
+@router.delete("/email-config", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_tenant_email_config(
+    tenant_id: str = Depends(get_tenant_id),
+    _=Depends(require_role(["admin"])),
+):
+    """Reset tenant email config to system defaults."""
+    await reset_email_config(tenant_id)
+
+
+@router.post("/email-config/test", status_code=status.HTTP_200_OK)
+async def test_tenant_email_config(
+    payload: TenantEmailTestRequest,
+    tenant_id: str = Depends(get_tenant_id),
+    _=Depends(require_role(["admin"])),
+):
+    """Send a test email using the tenant's configured SMTP settings."""
+    from apps.notifications.channels.email import EmailChannel
+    try:
+        await EmailChannel(tenant_id=tenant_id).send(
+            recipient=payload.recipient,
+            subject_template="Test email from FlowForge",
+            body_template="<p>This is a test email confirming your SMTP configuration is working correctly.</p>",
+            context={},
+        )
+        return {"success": True, "message": f"Test email sent to {payload.recipient}"}
+    except Exception as exc:
+        return {"success": False, "message": str(exc)}
 
 
 @router.get("/{tenant_id}/stats", response_model=TenantStatsResponse)

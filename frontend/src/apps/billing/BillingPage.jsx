@@ -22,7 +22,18 @@ import { apiClient } from "@/shared/lib/api-client";
 // Data helpers
 // ---------------------------------------------------------------------------
 
-const PLAN_META = {
+// Static UI-only metadata per plan slug (colors, icons, descriptions)
+// These never change with pricing — pricing comes from the API.
+const PLAN_UI = {
+  free:       { label: "Free",       color: "bg-slate-100 text-slate-600",   borderColor: "border-slate-200",  headerColor: "bg-slate-50",  badgeColor: "bg-slate-100 text-slate-700",  icon: null },
+  starter:    { label: "Starter",    color: "bg-blue-50 text-blue-700",     borderColor: "border-blue-200",   headerColor: "bg-blue-50",   badgeColor: "bg-blue-100 text-blue-700",    icon: <Zap className="w-4 h-4" /> },
+  growth:     { label: "Growth",     color: "bg-purple-50 text-purple-700", borderColor: "border-purple-200", headerColor: "bg-purple-50", badgeColor: "bg-purple-100 text-purple-700", icon: <TrendingUp className="w-4 h-4" />, highlighted: true },
+  business:   { label: "Growth",     color: "bg-purple-50 text-purple-700", borderColor: "border-purple-200", headerColor: "bg-purple-50", badgeColor: "bg-purple-100 text-purple-700", icon: <TrendingUp className="w-4 h-4" />, highlighted: true },
+  enterprise: { label: "Enterprise", color: "bg-amber-50 text-amber-700",   borderColor: "border-amber-200",  headerColor: "bg-amber-50",  badgeColor: "bg-amber-100 text-amber-700",  icon: <Crown className="w-4 h-4" /> },
+};
+
+// Fallback static plan meta (used when API is unavailable)
+const PLAN_META_FALLBACK = {
   free: {
     label: "Free",
     price: "$0",
@@ -114,7 +125,7 @@ const FEATURE_ROWS = [
   { label: "AI Builder", keys: ["ai_builder"], boolean: true },
 ];
 
-const COMPARISON_LIMITS = {
+const COMPARISON_LIMITS_FALLBACK = {
   free:       { max_apps: 3,   max_records: 500,    max_workflows: 1,  max_users: 2,  storage_mb: 100,   ai_builder: false },
   starter:    { max_apps: 15,  max_records: 10000,  max_workflows: 10, max_users: 5,  storage_mb: 1024,  ai_builder: false },
   growth:     { max_apps: -1,  max_records: 100000, max_workflows: -1, max_users: 25, storage_mb: 10240, ai_builder: true  },
@@ -269,6 +280,54 @@ export function BillingPage() {
     queryFn: () => apiClient.get("/billing/subscription").then((r) => r.data),
     staleTime: 30_000,
   });
+
+  // Fetch packages from API — fall back to static data if unavailable
+  const { data: packagesData } = useQuery({
+    queryKey: ["packages"],
+    queryFn: () => apiClient.get("/packages", { params: { active_only: true } }).then((r) => r.data),
+    staleTime: 60_000,
+  });
+
+  // Build PLAN_META from API packages, merging with UI-only static metadata
+  const PLAN_META = (() => {
+    if (packagesData && packagesData.length > 0) {
+      const meta = {};
+      packagesData.forEach((pkg) => {
+        const ui = PLAN_UI[pkg.slug] || PLAN_UI.free;
+        const lim = pkg.limits || {};
+        meta[pkg.slug] = {
+          ...ui,
+          label: ui.label || pkg.name,
+          price: pkg.price_monthly === 0 ? "$0" : pkg.price_monthly >= 1000 ? "Custom" : `$${pkg.price_monthly}`,
+          period: pkg.price_monthly === 0 || pkg.price_monthly >= 1000 ? "" : "/month",
+          features: [
+            lim.max_apps === -1 ? "Unlimited apps" : `${lim.max_apps} apps`,
+            lim.max_records === -1 ? "Unlimited records" : `${Number(lim.max_records).toLocaleString()} records`,
+            lim.max_workflows === -1 ? "Unlimited workflows" : `${lim.max_workflows} workflow${lim.max_workflows !== 1 ? "s" : ""}`,
+            lim.max_users === -1 ? "Unlimited team members" : `${lim.max_users} team member${lim.max_users !== 1 ? "s" : ""}`,
+            lim.storage_mb === -1 ? "Unlimited storage" : `${lim.storage_mb >= 1024 ? `${lim.storage_mb / 1024} GB` : `${lim.storage_mb} MB`} storage`,
+            ...(lim.ai_builder ? ["AI Builder"] : []),
+            ...(lim.allow_custom_domain ? ["Custom domain"] : []),
+            ...(lim.allow_sso ? ["LDAP / SAML SSO"] : []),
+          ],
+        };
+      });
+      return meta;
+    }
+    return PLAN_META_FALLBACK;
+  })();
+
+  // Build COMPARISON_LIMITS from API packages
+  const COMPARISON_LIMITS = (() => {
+    if (packagesData && packagesData.length > 0) {
+      const limits = {};
+      packagesData.forEach((pkg) => {
+        limits[pkg.slug] = pkg.limits || {};
+      });
+      return limits;
+    }
+    return COMPARISON_LIMITS_FALLBACK;
+  })();
 
   const checkout = useMutation({
     mutationFn: (plan) =>

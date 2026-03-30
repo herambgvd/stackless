@@ -24,6 +24,8 @@ import {
   Mail,
   MessageSquare,
   Network,
+  Package,
+  Paintbrush,
   Pencil,
   Play,
   Plug,
@@ -286,7 +288,7 @@ export function Sidebar({ collapsed, onToggle }) {
     if (["/apps", "/ai-builder", "/templates", "/scripts", "/print-formats"].some(r => p === r || p.startsWith(r + "/"))) return "build";
     if (["/rules", "/approvals/flows", "/workflow-templates", "/workflows/runs"].some(r => p === r || p.startsWith(r + "/"))) return "automation";
     if (["/notifications", "/email-campaigns", "/email-inbox", "/desk-chat"].some(r => p === r || p.startsWith(r + "/"))) return "communication";
-    if (["/settings/profile", "/settings/security", "/api-keys", "/settings/letter-heads", "/integrations", "/billing"].some(r => p === r || p.startsWith(r + "/"))) return "account";
+    if (["/settings/profile", "/settings/security", "/api-keys", "/settings/letter-heads", "/settings/branding", "/settings/email-config", "/integrations", "/billing"].some(r => p === r || p.startsWith(r + "/"))) return "account";
     if (p.startsWith("/admin/")) return "administration";
     return "mywork";
   });
@@ -367,6 +369,8 @@ export function Sidebar({ collapsed, onToggle }) {
               )}
               <NavItem label="Organizations" icon={<Building2 className="h-4 w-4" />} to="/admin/tenants"
                 isActive={currentPath.startsWith("/admin/tenants")} collapsed={collapsed} />
+              <NavItem label="Packages" icon={<Package className="h-4 w-4" />} to="/admin/packages"
+                isActive={currentPath.startsWith("/admin/packages")} collapsed={collapsed} />
               <NavItem label="Usage & Metering" icon={<BarChart2 className="h-4 w-4" />} to="/admin/usage"
                 isActive={currentPath.startsWith("/admin/usage")} collapsed={collapsed} />
 
@@ -523,6 +527,10 @@ export function Sidebar({ collapsed, onToggle }) {
                   { label: "Billing & Plan", icon: CreditCard,  to: "/billing" },
                   { label: "API Keys",       icon: Key,        to: "/api-keys" },
                   { label: "Letter Heads",   icon: FileText,   to: "/settings/letter-heads" },
+                  ...(isOrgAdmin ? [
+                    { label: "Branding",     icon: Paintbrush, to: "/settings/branding" },
+                    { label: "Email Config", icon: Mail,       to: "/settings/email-config" },
+                  ] : []),
                   ...(isBuilder
                     ? [{ label: "Integrations", icon: Plug, to: "/integrations" }]
                     : []),

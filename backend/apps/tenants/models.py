@@ -17,6 +17,17 @@ class TenantPlan(str, Enum):
     ENTERPRISE = "enterprise"
 
 
+class TenantEmailConfig(BaseModel):
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None  # TODO: encrypt at rest in a future iteration
+    email_from: Optional[str] = None
+    email_from_name: Optional[str] = None
+    use_tls: bool = True
+    is_configured: bool = False  # True once admin has saved custom SMTP
+
+
 class TenantBrandingSettings(BaseModel):
     logo_url: Optional[str] = None
     primary_color: str = "#6366f1"
@@ -40,6 +51,7 @@ class Tenant(Document):
     settings: TenantSettings = Field(default_factory=TenantSettings)
     is_active: bool = True
     owner_id: str
+    email_config: TenantEmailConfig = Field(default_factory=TenantEmailConfig)
     # ── Billing fields ────────────────────────────────────────────────────────
     stripe_customer_id: Optional[str] = None
     subscription_status: str = "active"  # mirrors Subscription.status for quick checks

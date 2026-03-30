@@ -47,6 +47,31 @@ class TenantResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TenantEmailConfigUpdate(BaseModel):
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    email_from: Optional[str] = None
+    email_from_name: Optional[str] = None
+    use_tls: Optional[bool] = None
+
+
+class TenantEmailConfigResponse(BaseModel):
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None  # masked: "***" if set
+    email_from: Optional[str] = None
+    email_from_name: Optional[str] = None
+    use_tls: bool = True
+    is_configured: bool = False
+
+
+class TenantEmailTestRequest(BaseModel):
+    recipient: str
+
+
 class TenantStatsResponse(BaseModel):
     tenant_id: str
     total_apps: int

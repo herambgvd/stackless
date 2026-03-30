@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Building2, MoreVertical, Trash2 } from "lucide-react";
+import { Plus, Building2, MoreVertical, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { tenantsApi } from "../api/tenants.api";
 import { Button } from "@/shared/components/ui/button";
@@ -31,6 +31,7 @@ import {
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Separator } from "@/shared/components/ui/separator";
 import { fmtSmart } from "@/shared/lib/date";
+import { apiClient } from "@/shared/lib/api-client";
 
 const PLAN_VARIANTS = {
   free: "secondary",
@@ -39,9 +40,15 @@ const PLAN_VARIANTS = {
   enterprise: "success",
 };
 
+const PLAN_ORDER = ["free", "starter", "growth", "business", "enterprise"];
+
 export function TenantsPage() {
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [planTenant, setPlanTenant] = useState(null); // { id, name, plan }
+  const [selectedPlan, setSelectedPlan] = useState("");
+  const [planError, setPlanError] = useState("");
   const [form, setForm] = useState({
     name: "",
     slug: "",
@@ -72,6 +79,28 @@ export function TenantsPage() {
       toast.success("Organization created with admin user");
     },
     onError: (e) => toast.error(e.message),
+  });
+
+  const { data: packages = [] } = useQuery({
+    queryKey: ["packages"],
+    queryFn: () => apiClient.get("/packages").then((r) => r.data),
+  });
+
+  const openPlanDialog = (t) => {
+    setPlanTenant(t);
+    setSelectedPlan(t.plan);
+    setPlanError("");
+    setPlanOpen(true);
+  };
+
+  const changePlan = useMutation({
+    mutationFn: () => tenantsApi.update(planTenant.id, { plan: selectedPlan }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tenants"] });
+      setPlanOpen(false);
+      toast.success(`Plan changed to ${selectedPlan}`);
+    },
+    onError: (e) => setPlanError(e.response?.data?.detail || e.message),
   });
 
   const del = useMutation({
@@ -154,6 +183,9 @@ export function TenantsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openPlanDialog(t)}>
+                          <Pencil className="h-4 w-4 mr-2" /> Change Plan
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => del.mutate(t.id)}
@@ -169,6 +201,72 @@ export function TenantsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Change Plan dialog */}
+      <Dialog open={planOpen} onOpenChange={(v) => { setPlanOpen(v); setPlanError(""); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change Plan{planTenant ? ` — ${planTenant.name}` : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Select Plan</Label>
+              {packages.length > 0 ? (
+                <div className="space-y-1.5">
+                  {packages.map((pkg) => (
+                    <label key={pkg.slug} className="flex items-center gap-3 p-2.5 rounded-lg border border-border cursor-pointer hover:bg-accent transition-colors">
+                      <input
+                        type="radio"
+                        name="plan"
+                        value={pkg.slug}
+                        checked={selectedPlan === pkg.slug}
+                        onChange={() => { setSelectedPlan(pkg.slug); setPlanError(""); }}
+                        className="accent-primary"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{pkg.name}</p>
+                        <p className="text-xs text-muted-foreground">${pkg.price_monthly}/mo</p>
+                      </div>
+                      {planTenant?.plan === pkg.slug && (
+                        <Badge variant="secondary" className="text-xs">Current</Badge>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                // Fallback if packages API returns empty
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={selectedPlan}
+                  onChange={(e) => { setSelectedPlan(e.target.value); setPlanError(""); }}
+                >
+                  {["free", "starter", "growth", "business", "enterprise"].map((p) => (
+                    <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            {selectedPlan && planTenant &&
+              PLAN_ORDER.indexOf(selectedPlan) < PLAN_ORDER.indexOf(planTenant.plan) && (
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-md p-2.5">
+                ⚠️ Downgrading may restrict features if current usage exceeds the new plan limits.
+              </p>
+            )}
+            {planError && (
+              <p className="text-xs text-destructive bg-destructive/10 rounded-md p-2.5">{planError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPlanOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => changePlan.mutate()}
+              disabled={selectedPlan === planTenant?.plan || changePlan.isPending}
+            >
+              {changePlan.isPending ? "Saving…" : "Save Plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg">

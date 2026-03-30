@@ -24,7 +24,8 @@ class NotificationStatus(str, Enum):
 
 class NotificationTemplate(Document):
     name: str
-    tenant_id: str
+    slug: Optional[str] = None  # e.g. "user-invite", "password-reset" — used for lookup by type
+    tenant_id: str  # use "global" for platform-wide fallback templates
     channel: NotificationChannel
     subject_template: str = ""
     body_template: str
@@ -38,6 +39,7 @@ class NotificationTemplate(Document):
         indexes = [
             IndexModel([("tenant_id", 1)]),
             IndexModel([("channel", 1)]),
+            IndexModel([("slug", 1), ("tenant_id", 1)]),
         ]
 
 
