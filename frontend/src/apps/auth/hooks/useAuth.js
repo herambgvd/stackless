@@ -37,6 +37,13 @@ export function useLogin({ onRequires2FA } = {}) {
       const user = await authApi.getMe();
       setAuth(user, tokens);
       await _fetchAndStoreCsrfToken();
+
+      // Invited users must change password before accessing the platform
+      if (resp.must_change_password || user?.must_change_password) {
+        navigate({ to: "/change-password-required" });
+        return;
+      }
+
       if (user?.is_superuser) {
         navigate({ to: "/admin/tenants" });
       } else {
@@ -58,6 +65,13 @@ export function useVerify2FA() {
       const user = await authApi.getMe();
       setAuth(user, tokens);
       await _fetchAndStoreCsrfToken();
+
+      // Invited users must change password before accessing the platform
+      if (user?.must_change_password) {
+        navigate({ to: "/change-password-required" });
+        return;
+      }
+
       if (user?.is_superuser) {
         navigate({ to: "/admin/tenants" });
       } else {

@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useRouter, useNavigate } from "@tanstack/react-router";
 import { useEffect, Component } from "react";
 import { useAuthStore } from "@/shared/store/auth.store";
 import { apiClient } from "@/shared/lib/api-client";
@@ -43,12 +43,19 @@ function RouteErrorFallback({ error }) {
 function AuthenticatedLayout() {
   const setUser = useAuthStore((s) => s.setUser);
   const setCsrfToken = useAuthStore((s) => s.setCsrfToken);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Refresh user data (roles, is_superuser, etc.) from server on mount
     apiClient
       .get("/auth/me")
-      .then((res) => setUser(res.data))
+      .then((res) => {
+        setUser(res.data);
+        // Redirect invited users who haven't changed their password yet
+        if (res.data?.must_change_password) {
+          navigate({ to: "/change-password-required" });
+        }
+      })
       .catch(() => {});
     // Fetch CSRF token on page load (not persisted across refreshes)
     apiClient

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo, memo } from "react";
 import ImportDialog from "./ImportDialog";
 import { CustomFieldsModal } from "./CustomFieldsModal";
 import FileUploadField from "./FileUploadField";
@@ -1253,6 +1253,159 @@ function InlineCellEditor({ value, onSave, onCancel }) {
   );
 }
 
+const RecordRow = memo(function RecordRow({
+  record,
+  idx,
+  isSelected,
+  hasNamingSeries,
+  displayFields,
+  editingCell,
+  setEditingCell,
+  onInlineSave,
+  allModels,
+  onEdit,
+  onDelete,
+  onTriggerWorkflow,
+  onSubmitApproval,
+  onViewAudit,
+  onSelectId,
+}) {
+  return (
+    <tr
+      className={cn(
+        "group transition-colors hover:bg-muted/30",
+        isSelected
+          ? "bg-primary/5"
+          : idx % 2 === 0
+            ? "bg-background"
+            : "bg-muted/10",
+      )}
+    >
+      <td className="py-3 pl-4 pr-2">
+        <button
+          type="button"
+          onClick={() => onSelectId(record.id)}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          {isSelected ? (
+            <CheckSquare className="h-3.5 w-3.5 text-primary" />
+          ) : (
+            <Square className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </td>
+      {hasNamingSeries && (
+        <td className="py-3 px-4">
+          <span className="font-mono text-xs font-semibold text-primary bg-primary/5 px-1.5 py-0.5 rounded">
+            {record._name ?? "—"}
+          </span>
+        </td>
+      )}
+      {displayFields.map((f) => {
+        const isEditing =
+          editingCell?.recordId === record.id &&
+          editingCell?.fieldName === f.name;
+        const isInlineEditable = ![
+          "relation",
+          "multiselect",
+          "boolean",
+          "file",
+          "formula",
+          "user_ref",
+          "child_table",
+          "rich_text",
+        ].includes(f.type);
+        return (
+          <td
+            key={f.name}
+            className={cn(
+              "py-3 px-4 max-w-[220px]",
+              isInlineEditable && "cursor-pointer",
+            )}
+            onDoubleClick={() =>
+              isInlineEditable &&
+              setEditingCell({
+                recordId: record.id,
+                fieldName: f.name,
+              })
+            }
+            title={
+              isInlineEditable ? "Double-click to edit" : undefined
+            }
+          >
+            {isEditing ? (
+              <InlineCellEditor
+                value={record[f.name]}
+                onSave={(val) => {
+                  onInlineSave(record, f.name, val);
+                  setEditingCell(null);
+                }}
+                onCancel={() => setEditingCell(null)}
+              />
+            ) : (
+              <CellValue
+                value={record[f.name]}
+                field={f}
+                allModels={allModels}
+                record={record}
+              />
+            )}
+          </td>
+        );
+      })}
+      <td className="py-3 px-4">
+        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 hover:bg-primary/10 hover:text-primary"
+            onClick={() => onEdit(record)}
+            title="Edit"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 hover:bg-amber-500/10 hover:text-amber-600"
+            onClick={() => onTriggerWorkflow(record)}
+            title="Trigger Workflow"
+          >
+            <Play className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 hover:bg-blue-500/10 hover:text-blue-600"
+            onClick={() => onSubmitApproval(record)}
+            title="Submit for Approval"
+          >
+            <Send className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 hover:bg-muted hover:text-foreground"
+            onClick={() => onViewAudit(record)}
+            title="Audit History"
+          >
+            <History className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => onDelete(record)}
+            title="Delete"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
 function RecordsTable({
   records,
   fields,
@@ -1271,13 +1424,17 @@ function RecordsTable({
   onSelectAll,
 }) {
   const [editingCell, setEditingCell] = useState(null); // { recordId, fieldName }
-  const displayFields = fields.slice(0, 5);
+  const displayFields = useMemo(() => fields.slice(0, 5), [fields]);
   // Show _name column first if any record has one (naming series)
-  const hasNamingSeries = records.some((r) => r._name);
-  const allSelected =
-    records.length > 0 && records.every((r) => selectedIds.has(r.id));
-  const someSelected =
-    !allSelected && records.some((r) => selectedIds.has(r.id));
+  const hasNamingSeries = useMemo(() => records.some((r) => r._name), [records]);
+  const allSelected = useMemo(
+    () => records.length > 0 && records.every((r) => selectedIds.has(r.id)),
+    [records, selectedIds],
+  );
+  const someSelected = useMemo(
+    () => !allSelected && records.some((r) => selectedIds.has(r.id)),
+    [allSelected, records, selectedIds],
+  );
 
   if (records.length === 0) {
     return (
@@ -1349,144 +1506,26 @@ function RecordsTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border/50">
-          {records.map((record, idx) => {
-            const isSelected = selectedIds.has(record.id);
-            return (
-              <tr
-                key={record.id}
-                className={cn(
-                  "group transition-colors hover:bg-muted/30",
-                  isSelected
-                    ? "bg-primary/5"
-                    : idx % 2 === 0
-                      ? "bg-background"
-                      : "bg-muted/10",
-                )}
-              >
-                <td className="py-3 pl-4 pr-2">
-                  <button
-                    type="button"
-                    onClick={() => onSelectId(record.id)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    {isSelected ? (
-                      <CheckSquare className="h-3.5 w-3.5 text-primary" />
-                    ) : (
-                      <Square className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                </td>
-                {hasNamingSeries && (
-                  <td className="py-3 px-4">
-                    <span className="font-mono text-xs font-semibold text-primary bg-primary/5 px-1.5 py-0.5 rounded">
-                      {record._name ?? "—"}
-                    </span>
-                  </td>
-                )}
-                {displayFields.map((f) => {
-                  const isEditing =
-                    editingCell?.recordId === record.id &&
-                    editingCell?.fieldName === f.name;
-                  const isInlineEditable = ![
-                    "relation",
-                    "multiselect",
-                    "boolean",
-                    "file",
-                    "formula",
-                    "user_ref",
-                    "child_table",
-                    "rich_text",
-                  ].includes(f.type);
-                  return (
-                    <td
-                      key={f.name}
-                      className={cn(
-                        "py-3 px-4 max-w-[220px]",
-                        isInlineEditable && "cursor-pointer",
-                      )}
-                      onDoubleClick={() =>
-                        isInlineEditable &&
-                        setEditingCell({
-                          recordId: record.id,
-                          fieldName: f.name,
-                        })
-                      }
-                      title={
-                        isInlineEditable ? "Double-click to edit" : undefined
-                      }
-                    >
-                      {isEditing ? (
-                        <InlineCellEditor
-                          value={record[f.name]}
-                          onSave={(val) => {
-                            onInlineSave(record, f.name, val);
-                            setEditingCell(null);
-                          }}
-                          onCancel={() => setEditingCell(null)}
-                        />
-                      ) : (
-                        <CellValue
-                          value={record[f.name]}
-                          field={f}
-                          allModels={allModels}
-                          record={record}
-                        />
-                      )}
-                    </td>
-                  );
-                })}
-                <td className="py-3 px-4">
-                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 hover:bg-primary/10 hover:text-primary"
-                      onClick={() => onEdit(record)}
-                      title="Edit"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 hover:bg-amber-500/10 hover:text-amber-600"
-                      onClick={() => onTriggerWorkflow(record)}
-                      title="Trigger Workflow"
-                    >
-                      <Play className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 hover:bg-blue-500/10 hover:text-blue-600"
-                      onClick={() => onSubmitApproval(record)}
-                      title="Submit for Approval"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 hover:bg-muted hover:text-foreground"
-                      onClick={() => onViewAudit(record)}
-                      title="Audit History"
-                    >
-                      <History className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => onDelete(record)}
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
+          {records.map((record, idx) => (
+            <RecordRow
+              key={record.id}
+              record={record}
+              idx={idx}
+              isSelected={selectedIds.has(record.id)}
+              hasNamingSeries={hasNamingSeries}
+              displayFields={displayFields}
+              editingCell={editingCell}
+              setEditingCell={setEditingCell}
+              onInlineSave={onInlineSave}
+              allModels={allModels}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onTriggerWorkflow={onTriggerWorkflow}
+              onSubmitApproval={onSubmitApproval}
+              onViewAudit={onViewAudit}
+              onSelectId={onSelectId}
+            />
+          ))}
         </tbody>
       </table>
     </div>
@@ -1750,7 +1789,7 @@ export function RecordsPage() {
   });
 
   // Active filters — only include conditions with both field + value set
-  const activeFilters = filterConditions.filter((c) => c.field && (c.value !== "" || ["is_empty", "is_not_empty"].includes(c.operator)));
+  const activeFilters = useMemo(() => filterConditions.filter((c) => c.field && (c.value !== "" || ["is_empty", "is_not_empty"].includes(c.operator))), [filterConditions]);
 
   // Load records — search + filters all go to backend
   const {
@@ -2003,22 +2042,22 @@ export function RecordsPage() {
     setSelectedIds(new Set());
   };
 
-  function handleSelectId(id) {
+  const handleSelectId = useCallback(function handleSelectId(id) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }
+  }, []);
 
-  function handleSelectAll(ids) {
+  const handleSelectAll = useCallback(function handleSelectAll(ids) {
     setSelectedIds(new Set(ids));
-  }
+  }, []);
 
-  function handleInlineSave(record, fieldName, newValue) {
+  const handleInlineSave = useCallback(function handleInlineSave(record, fieldName, newValue) {
     updateMut.mutate({ id: record.id, data: { [fieldName]: newValue } });
-  }
+  }, [updateMut]);
 
   async function handleFixtureImport(e) {
     const file = e.target.files?.[0];
@@ -2040,7 +2079,7 @@ export function RecordsPage() {
     }
   }
 
-  async function handleExport(format) {
+  const handleExport = useCallback(async function handleExport(format) {
     try {
       const endpoint =
         format === "fixtures"
@@ -2065,7 +2104,7 @@ export function RecordsPage() {
     } catch (err) {
       toast.error("Export failed: " + (err.response?.data?.detail || err.message));
     }
-  }
+  }, [appId, activeModelSlug]);
 
   function handleCsvImport(e) {
     const file = e.target.files?.[0];
@@ -2091,8 +2130,8 @@ export function RecordsPage() {
     e.target.value = "";
   }
 
-  const filterableFields =
-    activeModel?.fields?.filter((f) => f.is_filterable) ?? [];
+  const filterableFields = useMemo(() =>
+    activeModel?.fields?.filter((f) => f.is_filterable) ?? [], [activeModel?.fields]);
 
   if (modelsLoading) {
     return (

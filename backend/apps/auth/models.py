@@ -16,6 +16,7 @@ class User(Document):
     roles: list[str] = Field(default_factory=list)
     is_active: bool = True
     is_superuser: bool = False
+    must_change_password: bool = False
     onboarding_completed: bool = False
     # ── 2FA fields ────────────────────────────────────────────────────────────
     totp_secret: Optional[str] = None        # pyotp TOTP secret (base32)

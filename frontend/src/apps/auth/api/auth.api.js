@@ -46,4 +46,8 @@ export const authApi = {
   resetPassword: async (token, new_password) => {
     await apiClient.post("/auth/reset-password", { token, new_password });
   },
+
+  forceChangePassword: async (data) => {
+    await apiClient.post("/auth/force-change-password", data);
+  },
 };

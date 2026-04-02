@@ -36,6 +36,7 @@ class UserResponse(BaseModel):
     roles: list[str]
     is_active: bool
     is_superuser: bool
+    must_change_password: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -48,6 +49,11 @@ class UserUpdate(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+
+
+class ForceChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str = Field(min_length=8)
 
@@ -95,6 +101,7 @@ class LoginResponse(BaseModel):
     expires_in: Optional[int] = None
     requires_2fa: bool = False
     temp_token: Optional[str] = None      # short-lived token for the 2FA verify step
+    must_change_password: bool = False
 
 
 class TwoFAStatusResponse(BaseModel):

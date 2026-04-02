@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -64,7 +64,7 @@ import {
 
 // ── Plain nav item ──────────────────────────────────────────────────────────
 
-function NavItem({ label, icon, to, isActive, collapsed, indent }) {
+const NavItem = memo(function NavItem({ label, icon, to, isActive, collapsed, indent }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -85,7 +85,7 @@ function NavItem({ label, icon, to, isActive, collapsed, indent }) {
       {collapsed && <TooltipContent side="right">{label}</TooltipContent>}
     </Tooltip>
   );
-}
+});
 
 // ── Collapsible nav group (dropdown) ─────────────────────────────────────────
 
@@ -180,7 +180,7 @@ function NavGroup({ label, icon, items, currentPath, collapsed, isOpen, onOpen, 
 
 // ── App nav item with expandable sub-items ──────────────────────────────────
 
-function AppNavItem({ app, currentPath, collapsed, isBuilder }) {
+const AppNavItem = memo(function AppNavItem({ app, currentPath, collapsed, isBuilder }) {
   const isAppActive = currentPath.startsWith(`/apps/${app.id}`);
   const [open, setOpen] = useState(isAppActive);
   if (isAppActive && !open) setOpen(true);
@@ -268,7 +268,7 @@ function AppNavItem({ app, currentPath, collapsed, isBuilder }) {
       )}
     </div>
   );
-}
+});
 
 // ── Thin divider between sections ───────────────────────────────────────────
 

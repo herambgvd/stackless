@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
   UserPlus,
   Users,
@@ -9,10 +10,12 @@ import {
   CheckCircle,
   Trash2,
   Edit,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usersApi } from "../api/users.api";
 import { rbacApi } from "../../rbac/api/rbac.api";
+import { apiClient } from "@/shared/lib/api-client";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
@@ -69,6 +72,13 @@ export function UserManagementPage() {
     queryKey: ["rbac", "roles"],
     queryFn: () => rbacApi.listRoles(),
   });
+
+  const { data: emailConfig } = useQuery({
+    queryKey: ["tenant-email-config"],
+    queryFn: () => apiClient.get("/tenants/email-config").then((r) => r.data),
+  });
+
+  const emailConfigured = !!emailConfig?.is_configured;
 
   const inviteUser = useMutation({
     mutationFn: (data) => usersApi.inviteUser(data),
@@ -149,7 +159,16 @@ export function UserManagementPage() {
             Manage team members, invite new users, and assign roles
           </p>
         </div>
-        <Button onClick={() => setInviteOpen(true)} size="sm">
+        <Button
+          onClick={() => {
+            if (!emailConfigured) {
+              toast.error("Please configure your email server in Settings → Email Config before inviting users.");
+              return;
+            }
+            setInviteOpen(true);
+          }}
+          size="sm"
+        >
           <UserPlus className="h-4 w-4 mr-1" /> Invite User
         </Button>
       </div>
@@ -311,6 +330,18 @@ export function UserManagementPage() {
           <DialogHeader>
             <DialogTitle>Invite Team Member</DialogTitle>
           </DialogHeader>
+          {!emailConfigured && (
+            <div className="flex items-start gap-2 rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>
+                Email server is not configured.{" "}
+                <Link to="/settings/email-config" className="underline font-medium">
+                  Set up SMTP
+                </Link>{" "}
+                before inviting users.
+              </span>
+            </div>
+          )}
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Full Name *</Label>
@@ -364,6 +395,7 @@ export function UserManagementPage() {
             <Button
               onClick={() => inviteUser.mutate(inviteForm)}
               disabled={
+                !emailConfigured ||
                 !inviteForm.email ||
                 !inviteForm.full_name ||
                 inviteUser.isPending

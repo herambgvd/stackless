@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from apps.auth.schemas import (
     AdminUserUpdate,
     ChangePasswordRequest,
+    ForceChangePasswordRequest,
     ForgotPasswordRequest,
     InviteUserRequest,
     LoginRequest,
@@ -31,7 +32,7 @@ from apps.auth.service import (
 )
 from apps.auth.repository import create_user, get_user_by_email, get_user_by_id, list_users_by_tenant, update_user
 from core.dependencies import get_current_active_user, get_tenant_id, require_role
-from core.exceptions import ConflictError, NotFoundError, UnauthorizedError
+from core.exceptions import ConflictError, ForbiddenError, NotFoundError, UnauthorizedError
 from core.security import hash_password, verify_password
 
 router = APIRouter()
@@ -72,7 +73,7 @@ async def register(payload: RegisterRequest):
 @router.post("/login", response_model=LoginResponse)
 async def login(payload: LoginRequest):
     """Authenticate with email and password. If 2FA is enabled, returns a challenge."""
-    _, tokens, requires_2fa, temp_token = await authenticate_user_with_2fa(
+    user, tokens, requires_2fa, temp_token = await authenticate_user_with_2fa(
         payload.email, payload.password
     )
     if requires_2fa:
@@ -83,6 +84,7 @@ async def login(payload: LoginRequest):
         token_type=tokens.token_type,
         expires_in=tokens.expires_in,
         requires_2fa=False,
+        must_change_password=getattr(user, "must_change_password", False),
     )
 
 
@@ -340,7 +342,20 @@ async def change_password(
     """Change the current user's password."""
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise UnauthorizedError("Current password is incorrect.")
-    await update_user(current_user, hashed_password=hash_password(payload.new_password))
+    await update_user(current_user, hashed_password=hash_password(payload.new_password), must_change_password=False)
+
+
+@router.post("/force-change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def force_change_password(
+    payload: ForceChangePasswordRequest,
+    current_user=Depends(get_current_active_user),
+):
+    """First-login forced password change for invited users."""
+    if not getattr(current_user, "must_change_password", False):
+        raise HTTPException(status_code=400, detail="Password change not required.")
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise UnauthorizedError("Current password is incorrect.")
+    await update_user(current_user, hashed_password=hash_password(payload.new_password), must_change_password=False)
 
 
 # ── User Management (admin) ──────────────────────────────────────────────────
@@ -355,6 +370,7 @@ def _user_response(u) -> UserResponse:
         roles=u.roles,
         is_active=u.is_active,
         is_superuser=u.is_superuser,
+        must_change_password=getattr(u, "must_change_password", False),
         created_at=u.created_at,
         updated_at=u.updated_at,
     )
@@ -378,9 +394,19 @@ async def invite_user(
 ):
     """Invite a new user to the current tenant with a temporary password.
 
-    Returns the created user plus the one-time temporary password so the admin
-    can share it. A delivery email is also queued if SMTP is configured.
+    Requires the tenant to have email (SMTP) configured so the invitation
+    email can actually be delivered.
     """
+    # ── Ensure tenant has email configured ────────────────────────────────
+    from apps.tenants.repository import get_tenant_by_id as _get_tenant
+    _tenant = await _get_tenant(tenant_id)
+    if not _tenant or not _tenant.email_config.is_configured:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email server is not configured for this workspace. "
+                   "Please set up your SMTP settings in Settings → Email Config before inviting users.",
+        )
+
     existing = await get_user_by_email(payload.email)
     if existing:
         raise ConflictError("A user with this email already exists.")
@@ -390,6 +416,53 @@ async def invite_user(
 
     full_name = payload.full_name or payload.email.split("@")[0].replace(".", " ").title()
 
+    # ── Send invitation email BEFORE creating user ────────────────────────
+    # If email delivery fails the user won't be half-created in the DB.
+    from apps.notifications.channels.email import EmailChannel
+    from core.config import get_settings as _get_settings
+    _settings = _get_settings()
+    _login_url = f"{_settings.APP_BASE_URL}/login"
+    _subject = "You have been invited to Stackless"
+    _body = (
+        f'<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">'
+        f'<h2 style="color:#1a1a1a">Welcome to Stackless!</h2>'
+        f'<p>Hello {full_name},</p>'
+        f'<p>You have been invited to join a Stackless workspace. '
+        f'Use the credentials below to sign in:</p>'
+        f'<div style="background:#f4f4f5;padding:16px;border-radius:8px;margin:16px 0">'
+        f'<p style="margin:4px 0"><strong>Email:</strong> {payload.email}</p>'
+        f'<p style="margin:4px 0"><strong>Temporary Password:</strong> '
+        f'<code style="background:#e4e4e7;padding:2px 6px;border-radius:4px">{temp_password}</code></p>'
+        f'</div>'
+        f'<p>You will be asked to change your password on first login.</p>'
+        f'<a href="{_login_url}" style="display:inline-block;background:#2563eb;color:#fff;'
+        f'padding:10px 24px;border-radius:6px;text-decoration:none;margin-top:8px">Sign In</a>'
+        f'<p style="color:#71717a;font-size:12px;margin-top:24px">'
+        f'If you did not expect this invitation, you can safely ignore this email.</p>'
+        f'</div>'
+    )
+
+    # Check for a custom template first
+    from apps.notifications.repository import get_template_by_slug
+    _inv_tmpl = await get_template_by_slug("user-invite", tenant_id)
+    _ctx = {"full_name": full_name, "temp_password": temp_password, "email": payload.email, "login_url": _login_url}
+
+    try:
+        channel = EmailChannel(tenant_id=tenant_id)
+        await channel.send(
+            recipient=payload.email,
+            subject_template=_inv_tmpl.subject_template if _inv_tmpl else _subject,
+            body_template=_inv_tmpl.body_template if _inv_tmpl else _body,
+            context=_ctx if _inv_tmpl else {},  # raw HTML already rendered when no template
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to send invitation email: {exc}. "
+                   "Please verify your SMTP settings in Settings → Email Config.",
+        )
+
+    # ── Email sent successfully — now create the user ─────────────────────
     user = await create_user(
         email=payload.email,
         hashed_password=hash_password(temp_password),
@@ -397,32 +470,9 @@ async def invite_user(
         tenant_id=tenant_id,
         roles=payload.roles,
     )
+    # Mark user as requiring password change on first login
+    await update_user(user, must_change_password=True)
 
-    # Queue invitation email (best-effort — won't fail the request if SMTP not configured)
-    try:
-        from apps.notifications.tasks import send_notification_task
-        from apps.notifications.repository import get_template_by_slug
-        _inv_ctx = {"full_name": payload.full_name or payload.email, "temp_password": temp_password}
-        _inv_tmpl = await get_template_by_slug("user-invite", tenant_id)
-        send_notification_task.delay(
-            channel="email",
-            recipient=payload.email,
-            template_id=str(_inv_tmpl.id) if _inv_tmpl else None,
-            context=_inv_ctx,
-            tenant_id=tenant_id,
-            subject=_inv_tmpl.subject_template if _inv_tmpl else "You have been invited to Stackless",
-            body=None if _inv_tmpl else (
-                f"Hello {payload.full_name or payload.email},\n\n"
-                f"You have been invited to join a Stackless workspace.\n\n"
-                f"Email: {payload.email}\n"
-                f"Temporary password: {temp_password}\n\n"
-                f"Please log in and change your password immediately."
-            ),
-        )
-    except Exception:
-        pass  # Email delivery is best-effort
-
-    # Return user + temp password so admin can share it manually if needed
     user_data = _user_response(user).model_dump()
     user_data["temp_password"] = temp_password
     return user_data
