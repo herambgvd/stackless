@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 
 import redis.asyncio as aioredis
 import structlog
@@ -300,7 +301,12 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
 
         request.state.tenant_id = tenant_id
 
-        with structlog.contextvars.bound_contextvars(tenant_id=tenant_id):
+        # Generate request ID for tracing
+        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:12]
+        request.state.request_id = request_id
+
+        with structlog.contextvars.bound_contextvars(tenant_id=tenant_id, request_id=request_id):
             response = await call_next(request)
 
+        response.headers["X-Request-ID"] = request_id
         return response

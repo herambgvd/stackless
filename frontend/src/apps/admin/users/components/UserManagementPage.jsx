@@ -52,6 +52,7 @@ export function UserManagementPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [roleDialogUser, setRoleDialogUser] = useState(null);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
   const [selectedRole, setSelectedRole] = useState("");
   const [inviteForm, setInviteForm] = useState({
     email: "",
@@ -122,6 +123,17 @@ export function UserManagementPage() {
     },
     onError: (e) =>
       toast.error(e?.response?.data?.detail || "Failed to revoke role"),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (userId) => usersApi.deleteUserPermanently(userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+      setDeleteConfirmUser(null);
+      toast.success("User permanently deleted");
+    },
+    onError: (e) =>
+      toast.error(e?.response?.data?.detail || "Failed to delete user"),
   });
 
   const roleNames = roles.map((r) => r.name);
@@ -277,6 +289,12 @@ export function UserManagementPage() {
                             <CheckCircle className="h-4 w-4 mr-2" /> Reactivate
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setDeleteConfirmUser(u)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" /> Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -529,6 +547,28 @@ export function UserManagementPage() {
               disabled={!selectedRole || assignRole.isPending}
             >
               {assignRole.isPending ? "Assigning…" : "Assign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmUser} onOpenChange={() => setDeleteConfirmUser(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete User Permanently?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            This will permanently remove <strong>{deleteConfirmUser?.full_name}</strong> ({deleteConfirmUser?.email}) from your workspace. This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmUser(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteUser.mutate(deleteConfirmUser?.id)}
+              disabled={deleteUser.isPending}
+            >
+              {deleteUser.isPending ? "Deleting…" : "Delete Permanently"}
             </Button>
           </DialogFooter>
         </DialogContent>

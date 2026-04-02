@@ -231,7 +231,7 @@ async def get_tenant_id(
 
     base = re.sub(r"[^a-z0-9\s-]", "", current_user.full_name.lower().strip())
     base = re.sub(r"\s+", "-", base).strip("-") or "workspace"
-    slug = f"{base[:40]}-{_secrets.token_hex(3)}"
+    slug = f"{base[:40]}-{_secrets.token_hex(6)}"
 
     tenant = await create_new_tenant(
         TenantCreate(name=f"{current_user.full_name}'s Workspace", slug=slug),

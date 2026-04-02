@@ -19,4 +19,8 @@ export const usersApi = {
   removeUser: async (userId) => {
     await apiClient.delete(`/auth/users/${userId}`);
   },
+
+  deleteUserPermanently: async (userId) => {
+    await apiClient.delete(`/auth/users/${userId}/permanent`);
+  },
 };

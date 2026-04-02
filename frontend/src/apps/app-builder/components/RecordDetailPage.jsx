@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { buildZodSchema, buildDefaultValues } from "@/shared/lib/schema-utils";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -116,69 +117,11 @@ function evaluateDependsOn(dep, watchValues) {
   }
 }
 
-// ── Zod schema builder (shared with RecordsPage) ──────────────────────────────
-
-function buildZodSchema(fields) {
-  const shape = {};
-  for (const field of fields) {
-    if (field.read_only || field.config?.read_only || field.is_hidden || field.type === "formula" || field.type === "rollup") continue;
-    let rule;
-    switch (field.type) {
-      case "number":
-      case "currency":
-        rule = z.coerce.number({ invalid_type_error: `${field.label} must be a number` });
-        if (!field.is_required) rule = rule.optional();
-        break;
-      case "boolean":
-        rule = z.boolean().default(false);
-        break;
-      case "email":
-        rule = field.is_required
-          ? z.string().email("Invalid email").min(1, `${field.label} is required`)
-          : z.string().email("Invalid email").optional().or(z.literal(""));
-        break;
-      case "url":
-        rule = field.is_required
-          ? z.string().url("Invalid URL").min(1, `${field.label} is required`)
-          : z.string().url("Invalid URL").optional().or(z.literal(""));
-        break;
-      case "multiselect":
-        rule = field.is_required
-          ? z.array(z.string()).min(1, `${field.label} is required`)
-          : z.array(z.string()).default([]);
-        break;
-      case "file":
-        rule = z.any().optional();
-        break;
-      case "json":
-        rule = z.any().optional();
-        break;
-      case "child_table":
-        rule = z.array(z.record(z.any())).default([]);
-        break;
-      default:
-        rule = field.is_required
-          ? z.string().min(1, `${field.label} is required`)
-          : z.string().optional();
-    }
-    shape[field.name] = rule;
-  }
-  return z.object(shape);
-}
-
-function buildDefaultValues(fields, record = null) {
-  return Object.fromEntries(
-    fields
-      .filter((f) => !f.read_only && !f.config?.read_only && !f.is_hidden && f.type !== "formula" && f.type !== "rollup")
-      .map((f) => {
-        const existing = record?.[f.name];
-        if (existing !== undefined && existing !== null) return [f.name, existing];
-        if (f.type === "boolean") return [f.name, f.default_value ?? false];
-        if (f.type === "multiselect") return [f.name, []];
-        if (f.type === "file") return [f.name, null];
-        if (f.default_value != null) return [f.name, f.default_value];
-        return [f.name, ""];
-      }),
+// buildZodSchema and buildDefaultValues imported from @/shared/lib/schema-utils
+// Filter out read-only/hidden/computed fields before passing to these functions
+function getEditableFields(fields) {
+  return fields.filter(
+    (f) => !f.read_only && !f.config?.read_only && !f.is_hidden && f.type !== "formula" && f.type !== "rollup"
   );
 }
 
@@ -775,9 +718,9 @@ export function RecordDetailPage() {
     enabled: !!appId,
   });
   const activeModel = models.find((m) => m.slug === modelSlug) ?? null;
-  const editableFields = (activeModel?.fields ?? []).filter(
+  const editableFields = getEditableFields((activeModel?.fields ?? []).filter(
     (f) => !f.config?.hidden,
-  );
+  ));
 
   // ── Single DocType: fetch (or prepare) the single record ─────────────────
   const { data: singlePage, isLoading: singleLoading } = useQuery({

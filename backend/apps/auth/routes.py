@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from apps.auth.schemas import (
@@ -37,23 +36,30 @@ from core.security import hash_password, verify_password
 
 router = APIRouter()
 
-# ── Simple in-process rate limiter for password reset ─────────────────────────
-_reset_attempts: dict[str, list[float]] = defaultdict(list)
+# ── Redis-based rate limiter for password reset ──────────────────────────────
 
-
-def _check_password_reset_rate_limit(email: str) -> None:
-    """Allow at most 5 reset requests per email per hour."""
-    now = time.time()
-    window = 3600.0
+async def _check_password_reset_rate_limit(email: str) -> None:
+    """Allow at most 5 reset requests per email per hour. Uses Redis for cross-worker persistence."""
     max_attempts = 5
-    recent = [t for t in _reset_attempts[email] if now - t < window]
-    _reset_attempts[email] = recent
-    if len(recent) >= max_attempts:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many password reset attempts. Please wait before trying again.",
-        )
-    _reset_attempts[email].append(now)
+    window = 3600  # 1 hour
+    redis_key = f"pw_reset_rl:{email}"
+    try:
+        import redis.asyncio as aioredis
+        from core.config import get_settings as _gs
+        _redis = aioredis.from_url(_gs().REDIS_URL, decode_responses=True)
+        count = await _redis.incr(redis_key)
+        if count == 1:
+            await _redis.expire(redis_key, window)
+        await _redis.aclose()
+        if count > max_attempts:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many password reset attempts. Please wait before trying again.",
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # If Redis fails, allow through (rate limiting is best-effort here)
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -216,7 +222,7 @@ async def forgot_password(payload: ForgotPasswordRequest):
     from core.security import generate_password_reset_token
     from apps.notifications.tasks import send_notification_task
 
-    _check_password_reset_rate_limit(payload.email)
+    await _check_password_reset_rate_limit(payload.email)
 
     user = await get_user_by_email(payload.email)
     if not user or not user.is_active:
@@ -453,6 +459,26 @@ async def remove_user(
     if not user or user.tenant_id != tenant_id:
         raise NotFoundError("User", user_id)
     await update_user(user, is_active=False)
+
+
+@router.delete("/users/{user_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_permanently(
+    user_id: str,
+    tenant_id: str = Depends(get_tenant_id),
+    current_user=Depends(require_role(["admin"])),
+):
+    """Permanently delete a user and all their tokens (admin only)."""
+    from apps.auth.models import RefreshToken
+
+    user = await get_user_by_id(user_id)
+    if not user or user.tenant_id != tenant_id:
+        raise NotFoundError("User", user_id)
+    if str(user.id) == str(current_user.id):
+        raise ForbiddenError("You cannot delete your own account.")
+    # Revoke all refresh tokens
+    await RefreshToken.find(RefreshToken.user_id == str(user.id)).delete()
+    # Permanently remove the user document
+    await user.delete()
 
 
 # ── OAuth / SSO ───────────────────────────────────────────────────────────────

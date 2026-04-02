@@ -492,8 +492,8 @@ async def _write_audit_log(
             changes=changes,
             snapshot=snapshot,
         ).insert()
-    except Exception:
-        pass
+    except Exception as exc:
+        log.error("Audit log write failed", error=str(exc), action=action)
 
 
 async def _run_server_scripts(
@@ -565,8 +565,8 @@ async def _run_server_scripts(
                 doc = exec_locals["doc"]
             elif "doc" in exec_globals and exec_globals["doc"] is not doc:
                 doc = exec_globals["doc"]
-        except Exception:
-            pass
+        except Exception as exc:
+            log.error("Server script execution failed", script=script.name, error=str(exc))
 
     return doc
 
@@ -626,8 +626,8 @@ async def create_record(
         asyncio.create_task(
             recompute_rollups_for_parent(model_slug, data, tenant_id, app_id)
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        log.error("Rollup recomputation failed on create", error=str(exc), model_slug=model_slug)
 
     return record
 
@@ -703,8 +703,8 @@ async def update_record(
         asyncio.create_task(
             recompute_rollups_for_parent(model_slug, {**old_record, **data}, tenant_id, app_id)
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        log.error("Rollup recomputation failed on update", error=str(exc), model_slug=model_slug)
 
     return record
 
@@ -759,8 +759,8 @@ async def delete_record(
             asyncio.create_task(
                 recompute_rollups_for_parent(model_slug, record_before_delete, tenant_id, app_id)
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            log.error("Rollup recomputation failed on delete", error=str(exc), model_slug=model_slug)
 
 
 async def set_record_docstatus(

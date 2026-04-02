@@ -324,8 +324,17 @@ class WorkflowExecutor:
         return {"next_step_id": step.next_step_id, "matched_branch": "default"}
 
     MAX_LOOP_ITERATIONS = 500
+    MAX_LOOP_NESTING_DEPTH = 3
 
     async def handle_loop(self, step: WorkflowStep, run: WorkflowRun, context: dict) -> dict:
+        # Track nesting depth to prevent 500² explosion
+        current_depth = context.get("__loop_depth__", 0)
+        if current_depth >= self.MAX_LOOP_NESTING_DEPTH:
+            raise RuntimeError(
+                f"Loop nesting depth exceeded (max {self.MAX_LOOP_NESTING_DEPTH}). "
+                "Refactor workflow to avoid deeply nested loops."
+            )
+
         cfg = step.config
         items_key = cfg.get("items_variable", "items")
         items = run.variables.get(items_key, [])
@@ -346,7 +355,7 @@ class WorkflowExecutor:
         steps_by_id = {s.id: s for s in workflow.steps} if workflow else {}
 
         for index, item in enumerate(items):
-            loop_context = {**context, "loop_item": item, "loop_index": index}
+            loop_context = {**context, "loop_item": item, "loop_index": index, "__loop_depth__": current_depth + 1}
             if sub_step_id and sub_step_id in steps_by_id:
                 sub_step = steps_by_id[sub_step_id]
                 try:
