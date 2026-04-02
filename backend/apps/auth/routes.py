@@ -263,6 +263,10 @@ async def reset_password(payload: ResetPasswordRequest):
 
     await update_user(user, hashed_password=hash_password(payload.new_password))
 
+    # Invalidate all refresh tokens — forces re-login on all devices
+    from apps.auth.models import RefreshToken
+    await RefreshToken.find(RefreshToken.user_id == user_id).delete()
+
 
 @router.post("/me/2fa/confirm", status_code=status.HTTP_204_NO_CONTENT)
 async def confirm_2fa(
@@ -378,10 +382,12 @@ async def invite_user(
     import secrets
     temp_password = secrets.token_urlsafe(12)
 
+    full_name = payload.full_name or payload.email.split("@")[0].replace(".", " ").title()
+
     user = await create_user(
         email=payload.email,
         hashed_password=hash_password(temp_password),
-        full_name=payload.full_name,
+        full_name=full_name,
         tenant_id=tenant_id,
         roles=payload.roles,
     )
@@ -465,8 +471,21 @@ async def _oauth_upsert_user(email: str, full_name: str, provider: str) -> "Toke
             email=email,
             hashed_password=hash_password(f"oauth:{provider}:{email}"),  # unusable password
             full_name=full_name,
-            tenant_id=None,  # no default tenant for SSO users; they'll join one via invite
+            tenant_id=None,
         )
+        # Auto-provision a workspace for new OAuth users (same as regular registration)
+        try:
+            from apps.tenants.service import create_new_tenant
+            from apps.tenants.schemas import TenantCreate
+            import secrets
+            slug = f"{email.split('@')[0].lower().replace('.', '-')}-{secrets.token_hex(3)}"
+            tenant = await create_new_tenant(
+                TenantCreate(name=f"{full_name}'s Workspace", slug=slug),
+                owner_id=str(user.id),
+            )
+            user = await get_user_by_id(str(user.id))  # reload with tenant_id
+        except Exception:
+            pass  # Fallback: auto-provisioning in get_tenant_id dependency
     elif not user.is_active:
         raise UnauthorizedError("Your account is disabled.")
 

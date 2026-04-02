@@ -124,13 +124,31 @@ async def delete_role_endpoint(
 
 
 @router.post("/roles/assign", status_code=status.HTTP_200_OK)
-async def assign_role(payload: AssignRoleRequest, _=Depends(require_role(["admin"]))):
+async def assign_role(
+    payload: AssignRoleRequest,
+    tenant_id: str = Depends(get_tenant_id),
+    _=Depends(require_role(["admin"])),
+):
+    # Validate target user belongs to current tenant
+    from apps.auth.repository import get_user_by_id
+    target_user = await get_user_by_id(payload.user_id)
+    if not target_user or target_user.tenant_id != tenant_id:
+        raise ForbiddenError("Cannot assign roles to users outside your tenant.")
     await assign_role_to_user(payload.user_id, payload.role_name)
     return {"detail": f"Role '{payload.role_name}' assigned to user '{payload.user_id}'."}
 
 
 @router.post("/roles/revoke", status_code=status.HTTP_200_OK)
-async def revoke_role_endpoint(payload: RevokeRoleRequest, _=Depends(require_role(["admin"]))):
+async def revoke_role_endpoint(
+    payload: RevokeRoleRequest,
+    tenant_id: str = Depends(get_tenant_id),
+    _=Depends(require_role(["admin"])),
+):
+    # Validate target user belongs to current tenant
+    from apps.auth.repository import get_user_by_id
+    target_user = await get_user_by_id(payload.user_id)
+    if not target_user or target_user.tenant_id != tenant_id:
+        raise ForbiddenError("Cannot revoke roles from users outside your tenant.")
     await revoke_role(payload.user_id, payload.role_name)
     return {"detail": f"Role '{payload.role_name}' revoked from user '{payload.user_id}'."}
 
@@ -280,6 +298,12 @@ async def assign_profile_to_user(
     if not user_id:
         from fastapi import HTTPException
         raise HTTPException(400, "user_id is required")
+
+    # Validate target user belongs to current tenant
+    from apps.auth.repository import get_user_by_id
+    target_user = await get_user_by_id(user_id)
+    if not target_user or target_user.tenant_id != tenant_id:
+        raise ForbiddenError("Cannot assign profile to users outside your tenant.")
 
     for role_name in profile.roles:
         await assign_role_to_user(user_id, role_name)

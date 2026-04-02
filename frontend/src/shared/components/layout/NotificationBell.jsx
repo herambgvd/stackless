@@ -6,6 +6,18 @@ import { apiClient } from "@/shared/lib/api-client";
 import { fmtSmart } from "@/shared/lib/date";
 import { useAuthStore } from "@/shared/store/auth.store";
 
+function getApiOrigin() {
+  const apiUrl = import.meta.env.VITE_API_URL ?? "";
+  if (apiUrl.startsWith("http")) {
+    try {
+      return new URL(apiUrl).origin;
+    } catch {
+      return window.location.origin;
+    }
+  }
+  return window.location.origin;
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
@@ -37,7 +49,7 @@ export function NotificationBell() {
       const { tokens: t } = useAuthStore.getState();
       if (!t?.access_token) return;
 
-      const url = `/api/v1/notifications/stream?token=${encodeURIComponent(t.access_token)}`;
+      const url = `${getApiOrigin()}/api/v1/notifications/stream?token=${encodeURIComponent(t.access_token)}`;
       const es = new EventSource(url);
       esRef.current = es;
 

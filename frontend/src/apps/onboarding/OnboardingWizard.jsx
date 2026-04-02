@@ -96,11 +96,19 @@ export function OnboardingWizard() {
 
     // 1. Send invites (best-effort, don't block)
     if (inviteEmails.length > 0) {
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         inviteEmails.map((email) =>
-          apiClient.post("/auth/invite", { email }).catch(() => {})
+          apiClient.post("/auth/users/invite", { email, roles: ["member"] })
         )
       );
+      const failed = results.filter((r) => r.status === "rejected");
+      const succeeded = results.filter((r) => r.status === "fulfilled");
+      if (succeeded.length > 0) {
+        toast.success(`${succeeded.length} invitation(s) sent`);
+      }
+      if (failed.length > 0) {
+        toast.error(`${failed.length} invitation(s) failed`);
+      }
     }
 
     // 2. Mark onboarding complete on backend

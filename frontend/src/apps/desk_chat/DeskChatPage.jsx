@@ -177,8 +177,19 @@ function ChatPane({ channel }) {
     const tid = tenantId || localStorage.getItem("tenant_id");
     if (!token || !tid) return;
 
-    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const wsUrl = `${wsProtocol}://${window.location.host}/api/v1/chat/channels/${channel.id}/ws?token=${token}&tenant_id=${tid}`;
+    const apiUrl = import.meta.env.VITE_API_URL ?? "";
+    let wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    let wsHost = window.location.host;
+    if (apiUrl.startsWith("http")) {
+      try {
+        const parsed = new URL(apiUrl);
+        wsProtocol = parsed.protocol === "https:" ? "wss" : "ws";
+        wsHost = parsed.host;
+      } catch {
+        // keep current-window fallback
+      }
+    }
+    const wsUrl = `${wsProtocol}://${wsHost}/api/v1/chat/channels/${channel.id}/ws?token=${token}&tenant_id=${tid}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

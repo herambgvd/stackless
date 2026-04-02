@@ -91,8 +91,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     headers=headers,
                 )
         except Exception as exc:
-            # If Redis is unavailable, log and allow the request through
-            log.warning("Rate limiter Redis error — allowing request", error=str(exc))
+            # If Redis is unavailable, fail closed — reject request to prevent abuse
+            log.error("Rate limiter Redis unavailable — rejecting request", error=str(exc))
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "Service temporarily unavailable. Please try again shortly."},
+            )
 
         return await call_next(request)
 

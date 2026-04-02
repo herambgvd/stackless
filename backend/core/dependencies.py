@@ -142,18 +142,58 @@ def require_permission(resource: str, action: str) -> Callable:
         if not user_role_names:
             raise ForbiddenError(f"Permission denied: {action} on {resource}.")
 
+        # Check permission cache first (Redis, TTL=5min)
+        user_id = str(current_user.id) if hasattr(current_user, "id") else "unknown"
+        cache_key = f"perm:{tenant_id}:{user_id}:{resource}:{action}"
+        try:
+            import redis.asyncio as aioredis
+            from core.config import get_settings as _gs
+            _s = _gs()
+            _redis = aioredis.from_url(_s.REDIS_URL, decode_responses=True)
+            cached = await _redis.get(cache_key)
+            await _redis.aclose()
+            if cached == "1":
+                return current_user
+            if cached == "0":
+                raise ForbiddenError(f"Permission denied: {action} on {resource}.")
+        except (ImportError, Exception):
+            pass  # Cache miss or Redis unavailable — fall through to DB
+
         from apps.rbac.models import Role
 
-        # Fetch all roles for this tenant that match the user's role names
+        # Fetch all roles for this tenant (+ system-wide roles) that match the user's role names
         roles = await Role.find(
-            Role.tenant_id == tenant_id,
-            {"name": {"$in": user_role_names}},
+            {
+                "$or": [
+                    {"tenant_id": tenant_id},
+                    {"tenant_id": None},
+                ],
+                "name": {"$in": user_role_names},
+            },
         ).to_list()
 
+        allowed = False
         for role in roles:
             for perm in role.permissions:
                 if perm.resource == resource and action in perm.actions:
-                    return current_user
+                    allowed = True
+                    break
+            if allowed:
+                break
+
+        # Cache the result (5 min TTL)
+        try:
+            import redis.asyncio as aioredis
+            from core.config import get_settings as _gs
+            _s = _gs()
+            _redis = aioredis.from_url(_s.REDIS_URL, decode_responses=True)
+            await _redis.setex(cache_key, 300, "1" if allowed else "0")
+            await _redis.aclose()
+        except Exception:
+            pass
+
+        if allowed:
+            return current_user
 
         raise ForbiddenError(f"Permission denied: {action} on {resource}.")
 

@@ -54,7 +54,7 @@ class ChangePasswordRequest(BaseModel):
 
 class InviteUserRequest(BaseModel):
     email: EmailStr
-    full_name: str = Field(min_length=1, max_length=200)
+    full_name: Optional[str] = Field(None, max_length=200)
     roles: list[str] = Field(default_factory=list)
 
 

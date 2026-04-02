@@ -155,7 +155,10 @@ class WorkflowExecutor:
             attempt += 1
             result.attempt_count = attempt
             try:
-                output = await self.execute_step(step, run, context)
+                output = await asyncio.wait_for(
+                    self.execute_step(step, run, context),
+                    timeout=step.timeout_seconds if hasattr(step, 'timeout_seconds') and step.timeout_seconds else 60,
+                )
                 result.output_data = output
                 result.status = RunStatus.COMPLETED
                 result.completed_at = datetime.now(tz=timezone.utc)

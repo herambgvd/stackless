@@ -4,6 +4,10 @@ import re
 import secrets
 from typing import Any, Optional
 
+import structlog
+
+log = structlog.get_logger(__name__)
+
 from apps.schema_engine.models import FieldDefinition, FieldType, ModelDefinition
 from apps.schema_engine.repository import (
     create_app,
@@ -226,8 +230,9 @@ async def _apply_rules(
             tenant_id=tenant_id,
             previous_data=previous_data or {},
         )
-    except Exception:
-        # Never block record save due to rules engine failure
+    except Exception as exc:
+        # Never block record save due to rules engine failure — but log it
+        log.error("Rules engine failed", error=str(exc), model_slug=model_slug, exc_info=True)
         return data
 
     if result.errors:
@@ -298,8 +303,8 @@ async def _dispatch_rule_actions(
                     notification_context={"record_id": record_id, "model_id": model_id},
                     tenant_id=tenant_id,
                 )
-        except Exception:
-            pass  # Never block record operations
+        except Exception as exc:
+            log.error("Rule action dispatch failed", error=str(exc), exc_info=True)
 
 
 async def _dispatch_record_workflows(
@@ -329,8 +334,8 @@ async def _dispatch_record_workflows(
                 trigger_event=event,
                 context={"model_id": model_id, "app_id": app_id, "record_id": record_id},
             )
-    except Exception:
-        pass  # Never block record operations due to workflow dispatch
+    except Exception as exc:
+        log.error("Workflow dispatch failed", error=str(exc), exc_info=True)
 
 
 def _compute_formula_fields(data: dict[str, Any], model: ModelDefinition) -> dict[str, Any]:
