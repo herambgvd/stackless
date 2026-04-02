@@ -7,10 +7,6 @@ from typing import Any, Optional
 from beanie import PydanticObjectId
 
 from apps.schema_engine.models import AppDefinition, ModelDefinition
-from core.database import get_motor_client
-from core.config import get_settings
-
-settings = get_settings()
 
 
 # ── App CRUD ──────────────────────────────────────────────────────────────────
@@ -148,10 +144,10 @@ async def delete_model(model_id: str) -> bool:
 # ── Dynamic Record CRUD ────────────────────────────────────────────────────────
 
 def _get_collection(model_slug: str, tenant_id: str, app_id: str):
-    """Each app's dynamic collections are isolated by tenant_id + app_id + model_slug."""
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
-    collection_name = f"data__{tenant_id}__{app_id}__{model_slug}"
+    """Each app's dynamic collections are isolated in the tenant's database."""
+    from core.database import get_tenant_db
+    db = get_tenant_db(tenant_id)
+    collection_name = f"data__{app_id}__{model_slug}"
     return db[collection_name]
 
 

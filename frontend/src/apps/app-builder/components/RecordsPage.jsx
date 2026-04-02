@@ -1762,7 +1762,8 @@ export function RecordsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [activeModelSlug, setActiveModelSlug] = useState(null);
+  const searchParams = useSearch({ from: "/_authenticated/apps/$appId/records" });
+  const activeModelSlug = searchParams.model || null;
   const [activeView, setActiveView] = useState({
     id: "__default__",
     type: "list",
@@ -1801,7 +1802,7 @@ export function RecordsPage() {
   });
 
   if (models.length && !activeModelSlug) {
-    setActiveModelSlug(models[0].slug);
+    navigate({ search: { model: models[0].slug }, replace: true });
   }
 
   const activeModel = models.find((m) => m.slug === activeModelSlug) ?? null;
@@ -2067,7 +2068,7 @@ export function RecordsPage() {
   });
 
   const switchModel = (slug) => {
-    setActiveModelSlug(slug);
+    navigate({ search: { model: slug } });
     setActiveView({
       id: "__default__",
       type: "list",

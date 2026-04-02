@@ -10,11 +10,7 @@ from apps.tenants.repository import (
     update_tenant,
 )
 from apps.tenants.schemas import TenantCreate, TenantStatsResponse, TenantUpdate, TenantEmailConfigUpdate
-from core.database import get_motor_client
 from core.exceptions import ConflictError, ForbiddenError, NotFoundError
-from core.config import get_settings
-
-settings = get_settings()
 
 
 async def create_new_tenant(payload: TenantCreate, owner_id: str) -> Tenant:
@@ -78,8 +74,7 @@ _PLAN_ORDER = ["free", "starter", "growth", "business", "enterprise"]
 async def _validate_plan_downgrade(tenant_id: str, new_plan: str, current_plan: str) -> None:
     """Raise ForbiddenError if downgrading would violate the new plan's limits."""
     from core.plan_limits import get_plan_limits
-    from core.database import get_motor_client
-    from core.config import get_settings as _gs
+    from core.database import get_tenant_db
 
     current_idx = _PLAN_ORDER.index(current_plan.lower()) if current_plan.lower() in _PLAN_ORDER else 0
     new_idx = _PLAN_ORDER.index(new_plan.lower()) if new_plan.lower() in _PLAN_ORDER else 0
@@ -88,9 +83,7 @@ async def _validate_plan_downgrade(tenant_id: str, new_plan: str, current_plan: 
         return  # upgrade or same — no validation needed
 
     limits = get_plan_limits(new_plan)
-    _settings = _gs()
-    client = get_motor_client()
-    db = client[_settings.MONGODB_DB_NAME]
+    db = get_tenant_db(tenant_id)
 
     violations = []
 
@@ -179,8 +172,8 @@ async def reset_email_config(tenant_id: str) -> Tenant:
 
 
 async def get_tenant_stats(tenant_id: str) -> TenantStatsResponse:
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    from core.database import get_tenant_db
+    db = get_tenant_db(tenant_id)
 
     total_apps = await db["app_definitions"].count_documents({"tenant_id": tenant_id})
     total_users = await db["users"].count_documents({"tenant_id": tenant_id})

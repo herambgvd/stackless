@@ -20,10 +20,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
-from core.database import get_motor_client
-from core.config import get_settings
-
-settings = get_settings()
+from core.database import get_tenant_db
 
 _COUNTER_COL = "naming_counters"
 
@@ -69,17 +66,16 @@ async def generate_name(series_pattern: str, tenant_id: str, data: dict | None =
         counter_key = re.sub(r'\.\#+\.', '.#.', resolved)  # normalise back to .#.
         counter_key = f"{tenant_id}::{counter_key}"
 
-        seq = await _next_sequence(counter_key)
+        seq = await _next_sequence(counter_key, tenant_id)
         counter_str = str(seq).zfill(pad_len)
         resolved = resolved.replace(f".{hashes}.", counter_str, 1)
 
     return resolved
 
 
-async def _next_sequence(counter_key: str) -> int:
+async def _next_sequence(counter_key: str, tenant_id: str) -> int:
     """Atomically increment and return the next sequence number for *counter_key*."""
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    db = get_tenant_db(tenant_id)
     col = db[_COUNTER_COL]
 
     result = await col.find_one_and_update(

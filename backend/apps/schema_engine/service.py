@@ -28,11 +28,8 @@ from apps.schema_engine.schemas import (
     ModelUpdate,
     PaginatedRecordsResponse,
 )
-from core.database import get_motor_client
-from core.config import get_settings
+from core.database import get_tenant_db
 from core.exceptions import ConflictError, NotFoundError, ValidationError
-
-settings = get_settings()
 
 
 def _slug_from_name(name: str) -> str:
@@ -120,9 +117,8 @@ async def create_new_model(app_id: str, payload: ModelCreate, tenant_id: str):
 async def _ensure_model_indexes(model: ModelDefinition) -> None:
     from pymongo import ASCENDING, TEXT
 
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
-    collection_name = f"data__{model.tenant_id}__{model.app_id}__{model.slug}"
+    db = get_tenant_db(model.tenant_id)
+    collection_name = f"data__{model.app_id}__{model.slug}"
     col = db[collection_name]
 
     await col.create_index([("_tenant_id", ASCENDING)])
@@ -847,9 +843,8 @@ async def delete_model_cascade(model_id: str, tenant_id: str) -> None:
         raise NotFoundError("Model", model_id)
 
     # Drop the dynamic records collection
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
-    col_name = f"data__{tenant_id}__{model.app_id}__{model.slug}"
+    db = get_tenant_db(tenant_id)
+    col_name = f"data__{model.app_id}__{model.slug}"
     await db.drop_collection(col_name)
 
     # Delete all views for this model
@@ -913,8 +908,7 @@ async def _populate_relation_fields(
     if not relation_fields or not records:
         return records
 
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    db = get_tenant_db(model.tenant_id)
 
     # Build lookup map per relation field
     for field in relation_fields:
@@ -953,7 +947,7 @@ async def _populate_relation_fields(
                 resolved_display_field = fallback
 
         # Use the resolved model's own app_id for collection name (authoritative)
-        col_name = f"data__{target_model.tenant_id}__{target_model.app_id}__{target_model_slug}"
+        col_name = f"data__{target_model.app_id}__{target_model_slug}"
         col = db[col_name]
 
         # Collect all non-null IDs referenced by this field across the batch

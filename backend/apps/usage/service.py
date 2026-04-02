@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 
-from core.config import get_settings
-from core.database import get_motor_client
-
-settings = get_settings()
+from core.database import get_tenant_db, get_platform_db
 
 
 async def get_tenant_live_usage(tenant_id: str) -> dict:
@@ -20,8 +17,7 @@ async def get_tenant_live_usage(tenant_id: str) -> dict:
     every collection, so that metric is returned as 0 pending a future
     collection-registry implementation.
     """
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    db = get_tenant_db(tenant_id)
 
     app_count, user_count, workflow_count = await _count_parallel(
         db,
@@ -92,8 +88,7 @@ async def get_platform_stats() -> dict:
     new_tenants_last_30_days = await Tenant.find(Tenant.created_at >= cutoff).count()
 
     # Aggregate tenant counts by plan
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    db = get_platform_db()
     pipeline = [
         {"$group": {"_id": "$plan", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},

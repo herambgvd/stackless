@@ -63,4 +63,9 @@ export const approvalsApi = {
     const res = await apiClient.post("/approvals/requests", data);
     return res.data;
   },
+
+  cancelRequest: async (requestId) => {
+    const res = await apiClient.post(`/approvals/requests/${requestId}/cancel`);
+    return res.data;
+  },
 };

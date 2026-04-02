@@ -1,6 +1,9 @@
 import { apiClient } from "@/shared/lib/api-client";
 
 export const schemaApi = {
+  // Access the underlying axios client for custom queries
+  _client: () => apiClient,
+
   // Apps (schema definitions)
   listApps: async (params = {}) => {
     const res = await apiClient.get("/schema/apps", { params });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import { CheckCircle2, ClipboardList, ChevronRight } from "lucide-react";
@@ -29,9 +29,11 @@ export function PortalPage() {
   });
 
   // Set default active model once data loads
-  if (appSchema?.models?.length && !activeModelSlug) {
-    setActiveModelSlug(appSchema.models[0].slug);
-  }
+  useEffect(() => {
+    if (appSchema?.models?.length && !activeModelSlug) {
+      setActiveModelSlug(appSchema.models[0].slug);
+    }
+  }, [appSchema, activeModelSlug]);
 
   const submit = useMutation({
     mutationFn: ({ data, modelSlug }) => portalApi.submitForm(appId, data, modelSlug),

@@ -31,12 +31,9 @@ async def compute_rollup_for_record(
     Compute the rollup value for a single parent record.
     Returns the aggregate value (int, float, or None).
     """
-    from core.database import get_motor_client
-    from core.config import get_settings
+    from core.database import get_tenant_db
 
-    settings = get_settings()
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    db = get_tenant_db(tenant_id)
 
     source_model = rollup_config.get("source_model", "")
     relation_field = rollup_config.get("relation_field", "")
@@ -47,7 +44,7 @@ async def compute_rollup_for_record(
     if not source_model or not relation_field:
         return None
 
-    collection_name = f"data__{tenant_id}__{app_id}__{source_model}"
+    collection_name = f"data__{app_id}__{source_model}"
     collection = db[collection_name]
 
     # Build match query
@@ -110,13 +107,10 @@ async def recompute_rollups_for_parent(
     and recomputes the rollup values for the affected parent record.
     """
     from apps.schema_engine.repository import list_models
-    from core.database import get_motor_client
-    from core.config import get_settings
+    from core.database import get_tenant_db
     from apps.schema_engine.models import FieldType
 
-    settings = get_settings()
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    db = get_tenant_db(tenant_id)
 
     # Get all models in the same app to find parent models with ROLLUP fields
     try:
@@ -149,7 +143,7 @@ async def recompute_rollups_for_parent(
             )
 
             # Update the parent record's rollup field
-            parent_collection_name = f"data__{tenant_id}__{app_id}__{model.slug}"
+            parent_collection_name = f"data__{app_id}__{model.slug}"
             parent_collection = db[parent_collection_name]
             try:
                 from bson import ObjectId

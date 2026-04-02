@@ -36,6 +36,50 @@ class TenantBrandingSettings(BaseModel):
     favicon_url: Optional[str] = None
 
 
+class TenantStorageConfig(BaseModel):
+    """Per-tenant S3/object storage overrides. Falls back to .env defaults if None."""
+    endpoint: Optional[str] = None
+    access_key: Optional[str] = None
+    secret_key: Optional[str] = None
+    bucket_name: Optional[str] = None
+    use_ssl: Optional[bool] = None
+
+
+class TenantSecurityConfig(BaseModel):
+    """Per-tenant security overrides."""
+    rate_limit_requests: Optional[int] = None  # max requests per window
+    rate_limit_window_seconds: Optional[int] = None
+    max_upload_size_mb: Optional[int] = None
+    allowed_file_types: Optional[list[str]] = None  # e.g. [".pdf", ".jpg", ".png"]
+    session_timeout_minutes: Optional[int] = None
+
+
+class TenantOAuthConfig(BaseModel):
+    """Per-tenant OAuth/SSO overrides."""
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    github_client_id: Optional[str] = None
+    github_client_secret: Optional[str] = None
+
+
+class TenantConfig(BaseModel):
+    """Per-tenant configuration that overrides platform .env defaults.
+
+    Any field set to None means "use the platform default from .env".
+    """
+    smtp: Optional[TenantEmailConfig] = None  # re-uses existing email config model
+    storage: TenantStorageConfig = Field(default_factory=TenantStorageConfig)
+    security: TenantSecurityConfig = Field(default_factory=TenantSecurityConfig)
+    oauth: TenantOAuthConfig = Field(default_factory=TenantOAuthConfig)
+    # Custom domain for the tenant's frontend
+    custom_domain: Optional[str] = None
+    # Timezone default for this tenant
+    timezone: str = "UTC"
+    # Date/number formatting
+    date_format: str = "YYYY-MM-DD"
+    currency: str = "USD"
+
+
 class TenantSettings(BaseModel):
     branding: TenantBrandingSettings = Field(default_factory=TenantBrandingSettings)
     max_apps: int = 5
@@ -52,6 +96,7 @@ class Tenant(Document):
     is_active: bool = True
     owner_id: str
     email_config: TenantEmailConfig = Field(default_factory=TenantEmailConfig)
+    config: TenantConfig = Field(default_factory=TenantConfig)
     # ── Billing fields ────────────────────────────────────────────────────────
     stripe_customer_id: Optional[str] = None
     subscription_status: str = "active"  # mirrors Subscription.status for quick checks

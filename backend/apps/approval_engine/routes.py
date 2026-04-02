@@ -236,7 +236,10 @@ async def cancel_approval_request(
 @router.get("/requests/{request_id}/history", response_model=ApprovalRequestResponse)
 async def request_history_endpoint(
     request_id: str,
+    tenant_id: str = Depends(get_tenant_id),
     _=Depends(get_current_active_user),
 ):
     req = await get_approval_history(request_id)
+    if req.tenant_id != tenant_id:
+        raise NotFoundError("ApprovalRequest", request_id)
     return _request_to_response(req)

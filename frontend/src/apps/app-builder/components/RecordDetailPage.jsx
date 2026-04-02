@@ -1038,7 +1038,7 @@ export function RecordDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["apps", appId, "records", modelSlug] });
       toast.success("Record deleted");
-      navigate({ to: `/apps/${appId}/records?model=${modelSlug}` });
+      navigate({ to: `/apps/${appId}/records`, search: { model: modelSlug } });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -1131,19 +1131,19 @@ export function RecordDetailPage() {
             variant="ghost"
             size="icon"
             className="h-8 w-8 shrink-0"
-            onClick={() => navigate({ to: `/apps/${appId}/records?model=${modelSlug}` })}
+            onClick={() => navigate({ to: `/apps/${appId}/records`, search: { model: modelSlug } })}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           {/* Breadcrumb */}
           <nav className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
             <span className="hover:text-foreground cursor-pointer truncate max-w-[120px]"
-              onClick={() => navigate({ to: `/apps/${appId}/records` })}>
+              onClick={() => navigate({ to: `/apps/${appId}/records`, search: { model: modelSlug } })}>
               Records
             </span>
             <span>/</span>
             <span className="hover:text-foreground cursor-pointer"
-              onClick={() => navigate({ to: `/apps/${appId}/records?model=${modelSlug}` })}>
+              onClick={() => navigate({ to: `/apps/${appId}/records`, search: { model: modelSlug } })}>
               {activeModel.name}
             </span>
             <span>/</span>

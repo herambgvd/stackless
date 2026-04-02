@@ -257,18 +257,15 @@ class ApprovalStateMachine:
     ) -> Optional[str]:
         """Look up a field value on the associated record to resolve the approver's user_id."""
         try:
-            from core.config import get_settings
-            from core.database import get_motor_client
+            from core.database import get_tenant_db
             from apps.schema_engine.repository import get_model_by_id
 
             model = await get_model_by_id(request.model_id)
             if model is None:
                 return None
 
-            settings = get_settings()
-            client = get_motor_client()
-            db = client[settings.MONGODB_DB_NAME]
-            collection_name = f"data__{model.tenant_id}__{model.app_id}__{model.slug}"
+            db = get_tenant_db(model.tenant_id)
+            collection_name = f"data__{model.app_id}__{model.slug}"
             col = db[collection_name]
 
             from bson import ObjectId

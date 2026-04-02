@@ -117,17 +117,14 @@ async def save_request(request: ApprovalRequest) -> ApprovalRequest:
     """Save with optimistic-locking: atomically increments ``version`` and fails
     if another writer has already bumped it since we loaded the document."""
     from bson import ObjectId
-    from core.database import get_motor_client
-    from core.config import get_settings
+    from core.database import get_tenant_db
     from core.exceptions import ConflictError
 
     now = datetime.now(tz=timezone.utc)
     request.updated_at = now
     expected_version = request.version
 
-    settings = get_settings()
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    db = get_tenant_db(request.tenant_id)
     col = db["approval_requests"]
 
     doc = request.model_dump(mode="python", exclude={"id", "revision_id"})

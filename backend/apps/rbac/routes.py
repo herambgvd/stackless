@@ -87,11 +87,14 @@ async def get_role_endpoint(
 async def update_role_endpoint(
     role_id: str,
     payload: RoleUpdate,
-    _=Depends(require_role(["admin"])),
+    tenant_id: str = Depends(get_tenant_id),
+    current_user=Depends(require_role(["admin"])),
 ):
     role = await get_role_by_id(role_id)
     if not role:
         raise NotFoundError("Role", role_id)
+    if not current_user.is_superuser and role.tenant_id and role.tenant_id != tenant_id:
+        raise ForbiddenError("Access to this role is not allowed.")
     kwargs: dict = {}
     if payload.name is not None:
         kwargs["name"] = payload.name
@@ -107,10 +110,17 @@ async def update_role_endpoint(
 
 
 @router.delete("/roles/{role_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_role_endpoint(role_id: str, _=Depends(require_role(["admin"]))):
-    deleted = await delete_role(role_id)
-    if not deleted:
+async def delete_role_endpoint(
+    role_id: str,
+    tenant_id: str = Depends(get_tenant_id),
+    current_user=Depends(require_role(["admin"])),
+):
+    role = await get_role_by_id(role_id)
+    if not role:
         raise NotFoundError("Role", role_id)
+    if not current_user.is_superuser and role.tenant_id and role.tenant_id != tenant_id:
+        raise ForbiddenError("Access to this role is not allowed.")
+    await delete_role(role_id)
 
 
 @router.post("/roles/assign", status_code=status.HTTP_200_OK)

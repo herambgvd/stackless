@@ -156,8 +156,6 @@ async def get_form_analytics(
     from apps.portal.form_models import PortalForm
     from beanie import PydanticObjectId
     from datetime import datetime, timedelta, timezone
-    from core.database import get_motor_client
-    from core.config import get_settings
 
     try:
         oid = PydanticObjectId(form_id)
@@ -183,9 +181,8 @@ async def get_form_analytics(
     ).count()
 
     # Daily trend via aggregation
-    settings = get_settings()
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    from core.database import get_tenant_db
+    db = get_tenant_db(tenant_id)
     col = db["portal_submissions"]
 
     pipeline = [

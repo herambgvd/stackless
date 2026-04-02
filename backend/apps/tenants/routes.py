@@ -190,6 +190,75 @@ async def test_tenant_email_config(
         return {"success": False, "message": str(exc)}
 
 
+# ── Tenant Configuration ──────────────────────────────────────────────────────
+
+@router.get("/config")
+async def get_tenant_config_endpoint(
+    tenant_id: str = Depends(get_tenant_id),
+    _=Depends(require_role(["admin"])),
+):
+    """Get the current tenant's full configuration."""
+    tenant = await get_tenant_by_id(tenant_id)
+    if not tenant:
+        raise NotFoundError("Tenant", tenant_id)
+    return {
+        "config": tenant.config.model_dump(),
+        "email_config": {
+            **tenant.email_config.model_dump(),
+            "smtp_password": "***" if tenant.email_config.smtp_password else None,
+        },
+        "settings": tenant.settings.model_dump(),
+    }
+
+
+@router.put("/config")
+async def update_tenant_config_endpoint(
+    payload: dict,
+    tenant_id: str = Depends(get_tenant_id),
+    _=Depends(require_role(["admin"])),
+):
+    """Update tenant configuration (partial update)."""
+    from apps.tenants.models import TenantConfig
+    from apps.tenants.repository import update_tenant
+    from core.tenant_config import invalidate_tenant_config_cache
+
+    tenant = await get_tenant_by_id(tenant_id)
+    if not tenant:
+        raise NotFoundError("Tenant", tenant_id)
+
+    # Merge incoming payload into existing config
+    current = tenant.config.model_dump()
+    for section_key, section_val in payload.items():
+        if isinstance(section_val, dict) and section_key in current and isinstance(current[section_key], dict):
+            current[section_key].update(section_val)
+        else:
+            current[section_key] = section_val
+
+    tenant.config = TenantConfig(**current)
+    await update_tenant(tenant, config=tenant.config)
+    invalidate_tenant_config_cache(tenant_id)
+
+    return {"config": tenant.config.model_dump()}
+
+
+@router.delete("/config", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_tenant_config_endpoint(
+    tenant_id: str = Depends(get_tenant_id),
+    _=Depends(require_role(["admin"])),
+):
+    """Reset tenant configuration to platform defaults."""
+    from apps.tenants.models import TenantConfig
+    from apps.tenants.repository import update_tenant
+    from core.tenant_config import invalidate_tenant_config_cache
+
+    tenant = await get_tenant_by_id(tenant_id)
+    if not tenant:
+        raise NotFoundError("Tenant", tenant_id)
+    tenant.config = TenantConfig()
+    await update_tenant(tenant, config=tenant.config)
+    invalidate_tenant_config_cache(tenant_id)
+
+
 @router.get("/{tenant_id}/stats", response_model=TenantStatsResponse)
 async def tenant_stats(
     tenant_id: str,

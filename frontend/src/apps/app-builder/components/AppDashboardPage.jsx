@@ -157,7 +157,7 @@ function ReportWidget({ data, loading, appId }) {
     queryKey: ['report-widget', reportId],
     queryFn: async () => {
       const { apiClient } = await import('@/shared/lib/api-client');
-      const res = await apiClient.post(`/reports/apps/${reportAppId}/saved-reports/${reportId}/run`);
+      const res = await apiClient.post(`/schema/apps/${reportAppId}/saved-reports/${reportId}/run`);
       return res.data;
     },
     enabled: !!reportId,
@@ -518,7 +518,7 @@ export default function AppDashboardPage({ appId, models = [] }) {
     queryKey: ['saved-reports', appId],
     queryFn: async () => {
       const { apiClient } = await import('@/shared/lib/api-client');
-      const res = await apiClient.get(`/reports/apps/${appId}/saved-reports`);
+      const res = await apiClient.get(`/schema/apps/${appId}/saved-reports`);
       return res.data ?? [];
     },
     enabled: !!appId,

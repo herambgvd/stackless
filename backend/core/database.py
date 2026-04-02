@@ -10,6 +10,9 @@ settings = get_settings()
 
 _client: motor.motor_asyncio.AsyncIOMotorClient | None = None
 
+# Cache of tenant databases that have been initialized with Beanie
+_initialized_tenant_dbs: set[str] = set()
+
 
 def _build_mongo_uri() -> str:
     """Return MongoDB URI with RFC 3986 encoded credentials.
@@ -50,10 +53,41 @@ def get_motor_client() -> motor.motor_asyncio.AsyncIOMotorClient:
     return _client
 
 
-async def init_db() -> None:
-    """Initialise Beanie ODM with all document models."""
+def get_platform_db_name() -> str:
+    """Return the shared platform database name (stores tenants, superadmin users)."""
+    return settings.MONGODB_DB_NAME
+
+
+def get_tenant_db_name(tenant_id: str) -> str:
+    """Return the database name for a specific tenant.
+
+    Each tenant gets an isolated database: ``{platform_db}__{tenant_id}``
+    This ensures query performance doesn't degrade as tenant count grows.
+    """
+    if not tenant_id:
+        return settings.MONGODB_DB_NAME
+    return f"{settings.MONGODB_DB_NAME}__{tenant_id}"
+
+
+def get_platform_db():
+    """Return the shared platform database (tenants, superadmin)."""
+    client = get_motor_client()
+    return client[get_platform_db_name()]
+
+
+def get_tenant_db(tenant_id: str):
+    """Return the database for a specific tenant.
+
+    Falls back to the platform database if tenant_id is empty/None.
+    """
+    client = get_motor_client()
+    db_name = get_tenant_db_name(tenant_id)
+    return client[db_name]
+
+
+async def _get_tenant_document_models():
+    """Return all Beanie document models that are tenant-scoped."""
     from apps.auth.models import User, RefreshToken
-    from apps.tenants.models import Tenant
     from apps.rbac.models import Role, RoleProfile
     from apps.schema_engine.models import AppDefinition, FileVersion, ModelDefinition, View
     from apps.rules_engine.models import RuleSet
@@ -87,65 +121,102 @@ async def init_db() -> None:
     from apps.usage.models import TenantUsageSnapshot
     from apps.packages.models import Package
 
-    client = get_motor_client()
-    database = client[settings.MONGODB_DB_NAME]
+    return [
+        User,
+        RefreshToken,
+        Role,
+        RoleProfile,
+        AppDefinition,
+        ModelDefinition,
+        View,
+        FileVersion,
+        RuleSet,
+        ApprovalFlow,
+        ApprovalRequest,
+        Workflow,
+        WorkflowRun,
+        NotificationTemplate,
+        NotificationLog,
+        EmailBounceEvent,
+        NotificationPreference,
+        PortalSubmission,
+        PortalForm,
+        TenantAIConfig,
+        AIChatSession,
+        AuditLog,
+        DashboardWidget,
+        Comment,
+        ScheduledReport,
+        SavedReport,
+        ApiKey,
+        HumanTask,
+        Integration,
+        InboundWebhook,
+        PrintFormat,
+        LetterHead,
+        ErrorLog,
+        RequestLog,
+        RecordTag,
+        RecordShare,
+        RecordFavourite,
+        RecordAttachment,
+        ServerScript,
+        ClientScript,
+        EmailCampaign,
+        CampaignSendLog,
+        InboxConfig,
+        InboundEmail,
+        ChatChannel,
+        ChatMessage,
+        CalendarEvent,
+        Subscription,
+        TenantUsageSnapshot,
+        Package,
+    ]
 
+
+async def init_db() -> None:
+    """Initialise Beanie ODM with the platform database.
+
+    This sets up Beanie for the shared platform database which stores
+    tenants and superadmin users. Tenant-specific databases are initialized
+    lazily on first request via ``ensure_tenant_db_initialized()``.
+    """
+    from apps.tenants.models import Tenant
+
+    client = get_motor_client()
+    platform_database = client[get_platform_db_name()]
+
+    # Initialize platform DB with all models (backward compatible)
+    # This ensures the default database works for existing single-DB setups
+    tenant_models = await _get_tenant_document_models()
     await init_beanie(
-        database=database,
-        document_models=[
-            User,
-            RefreshToken,
-            Tenant,
-            Role,
-            RoleProfile,
-            AppDefinition,
-            ModelDefinition,
-            View,
-            FileVersion,
-            RuleSet,
-            ApprovalFlow,
-            ApprovalRequest,
-            Workflow,
-            WorkflowRun,
-            NotificationTemplate,
-            NotificationLog,
-            EmailBounceEvent,
-            NotificationPreference,
-            PortalSubmission,
-            PortalForm,
-            TenantAIConfig,
-            AIChatSession,
-            AuditLog,
-            DashboardWidget,
-            Comment,
-            ScheduledReport,
-            SavedReport,
-            ApiKey,
-            HumanTask,
-            Integration,
-            InboundWebhook,
-            PrintFormat,
-            LetterHead,
-            ErrorLog,
-            RequestLog,
-            RecordTag,
-            RecordShare,
-            RecordFavourite,
-            RecordAttachment,
-            ServerScript,
-            ClientScript,
-            EmailCampaign,
-            CampaignSendLog,
-            InboxConfig,
-            InboundEmail,
-            ChatChannel,
-            ChatMessage,
-            CalendarEvent,
-            Subscription,
-            TenantUsageSnapshot,
-            Package,
-        ],
+        database=platform_database,
+        document_models=[Tenant] + tenant_models,
     )
+
+
+async def ensure_tenant_db_initialized(tenant_id: str) -> None:
+    """Ensure a tenant's database has Beanie models initialized.
+
+    Called once per tenant per app lifecycle. Safe to call multiple times.
+    """
+    if not tenant_id:
+        return
+
+    db_name = get_tenant_db_name(tenant_id)
+    if db_name in _initialized_tenant_dbs:
+        return
+
+    client = get_motor_client()
+    tenant_database = client[db_name]
+
+    tenant_models = await _get_tenant_document_models()
+    await init_beanie(
+        database=tenant_database,
+        document_models=tenant_models,
+    )
+    _initialized_tenant_dbs.add(db_name)
 
 
 async def close_db() -> None:
@@ -153,3 +224,4 @@ async def close_db() -> None:
     if _client is not None:
         _client.close()
         _client = None
+    _initialized_tenant_dbs.clear()

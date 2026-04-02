@@ -153,7 +153,7 @@ function MessageBubble({ msg, currentUserId, channelId, onReact }) {
 
 function ChatPane({ channel }) {
   const { user } = useAuthStore();
-  const { tenantId } = useTenantStore?.() || {};
+  const { tenantId } = useTenantStore() || {};
   const qc = useQueryClient();
   const [input, setInput] = useState("");
   const bottomRef = useRef(null);

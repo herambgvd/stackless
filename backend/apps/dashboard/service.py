@@ -4,12 +4,11 @@ from typing import Optional, Any
 from datetime import datetime, timezone
 
 from apps.dashboard.models import DashboardWidget
-from core.database import get_motor_client
-from core.config import get_settings
+from core.database import get_tenant_db
 
 
 def _collection_name(tenant_id: str, app_id: str, model_slug: str) -> str:
-    return f"data__{tenant_id}__{app_id}__{model_slug}"
+    return f"data__{app_id}__{model_slug}"
 
 
 async def _get_widget_data(
@@ -17,9 +16,7 @@ async def _get_widget_data(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
 ) -> Any:
-    settings = get_settings()
-    client = get_motor_client()
-    db = client[settings.MONGODB_DB_NAME]
+    db = get_tenant_db(widget.tenant_id)
     col = db[_collection_name(widget.tenant_id, widget.app_id, widget.model_slug)]
 
     # Base match

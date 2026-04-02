@@ -155,15 +155,11 @@ async def run_saved_report(
     if not report:
         raise NotFoundError("SavedReport", report_id)
 
-    from core.database import get_motor_client
-    from core.config import get_settings
+    from core.database import get_tenant_db
+    db = get_tenant_db(tenant_id)
+    collection = db[f"data__{app_id}__{report.model_slug}"]
 
-    _settings = get_settings()
-    client = get_motor_client()
-    db = client[_settings.MONGODB_DB_NAME]
-    collection = db[f"{tenant_id}__{app_id}__{report.model_slug}"]
-
-    match_stage: dict = {"tenant_id": tenant_id}
+    match_stage: dict = {"_tenant_id": tenant_id}
 
     for f in report.filters:
         if f.operator == "=":

@@ -27,7 +27,7 @@ export function CustomerPortalMySubmissionsPage() {
     if (!token) {
       navigate({ to: `/portal/${tenantId}/login` });
     }
-  }, [token]);
+  }, [token, navigate, tenantId]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['portal-my-submissions', tenantId, page],

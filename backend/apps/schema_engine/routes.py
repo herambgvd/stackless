@@ -457,6 +457,27 @@ async def create_record_endpoint(
 # These must be registered BEFORE /{record_id} routes so literal path segments
 # "export" and "import" are not captured as a record_id parameter.
 
+@router.get("/apps/{app_id}/{model_slug}/records/import-template")
+async def import_template_endpoint(
+    app_id: str,
+    model_slug: str,
+    format: str = Query("csv", pattern="^(csv|xlsx)$"),
+    _=Depends(require_permission("records", "read")),
+):
+    from apps.schema_engine.import_export import generate_import_template
+    return await generate_import_template(model_slug, app_id, format)
+
+
+@router.get("/apps/{app_id}/{model_slug}/records/import-hints")
+async def import_hints_endpoint(
+    app_id: str,
+    model_slug: str,
+    _=Depends(require_permission("records", "read")),
+):
+    from apps.schema_engine.import_export import get_field_type_hints
+    return await get_field_type_hints(model_slug, app_id)
+
+
 @router.get("/apps/{app_id}/{model_slug}/records/export")
 async def export_records_endpoint(
     app_id: str,
@@ -1332,11 +1353,8 @@ async def workflow_state_transition(
         raise HTTPException(status_code=422, detail=f"State '{to_state}' is not defined for this model")
 
     # Load the record and check current state
-    from core.database import get_motor_client
-    from core.config import get_settings
-    _settings = get_settings()
-    client = get_motor_client()
-    db = client[_settings.MONGODB_DB_NAME]
+    from core.database import get_tenant_db
+    db = get_tenant_db(tenant_id)
     collection = db[f"{tenant_id}__{app_id}__{model_slug}"]
 
     from bson import ObjectId

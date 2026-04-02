@@ -425,8 +425,9 @@ async def create_backup(
     from fastapi import HTTPException
     from fastapi.responses import FileResponse
 
+    from core.database import get_platform_db_name
     settings = get_settings()
-    db_name = settings.MONGODB_DB_NAME
+    db_name = get_platform_db_name()
     mongo_uri = settings.MONGODB_URI
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -474,8 +475,9 @@ async def restore_backup(
     import os
     from fastapi import HTTPException
 
+    from core.database import get_platform_db_name
     settings = get_settings()
-    db_name = settings.MONGODB_DB_NAME
+    db_name = get_platform_db_name()
     mongo_uri = settings.MONGODB_URI
 
     content = await file.read()

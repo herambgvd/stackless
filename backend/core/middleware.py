@@ -296,6 +296,11 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
 
         request.state.tenant_id = tenant_id
 
+        # Ensure tenant database is initialized (lazy, cached)
+        if tenant_id:
+            from core.database import ensure_tenant_db_initialized
+            await ensure_tenant_db_initialized(tenant_id)
+
         with structlog.contextvars.bound_contextvars(tenant_id=tenant_id):
             response = await call_next(request)
 
