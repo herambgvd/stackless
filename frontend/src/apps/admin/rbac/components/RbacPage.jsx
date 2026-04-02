@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Shield, Trash2, Pencil, X, Check } from "lucide-react";
+import { Plus, Shield, Trash2, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { rbacApi } from "../api/rbac.api";
+import { schemaApi } from "@/apps/app-builder/api/schema.api";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
@@ -10,25 +11,37 @@ import { Label } from "@/shared/components/ui/label";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/shared/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/shared/components/ui/dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/shared/components/ui/table";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const COMMON_ACTIONS = ["create", "read", "update", "delete", "execute"];
+
+const SYSTEM_RESOURCES = [
+  { value: "records", label: "Records" },
+  { value: "apps", label: "Apps" },
+  { value: "schema", label: "Schema / Models" },
+  { value: "users", label: "Users" },
+  { value: "reports", label: "Reports" },
+  { value: "workflows", label: "Workflows" },
+  { value: "approvals", label: "Approvals" },
+  { value: "notifications", label: "Notifications" },
+  { value: "admin", label: "Administration" },
+  { value: "portal", label: "Portal" },
+  { value: "integrations", label: "Integrations" },
+  { value: "dashboard", label: "Dashboard" },
+  { value: "email", label: "Email Inbox" },
+  { value: "comments", label: "Comments" },
+  { value: "files", label: "Files / Attachments" },
+];
 
 const EMPTY_ROLE_FORM = {
   name: "",
@@ -38,7 +51,6 @@ const EMPTY_ROLE_FORM = {
 };
 
 // ── Permission Builder ─────────────────────────────────────────────────────────
-// Lets users build list[{resource, actions}] interactively
 
 function PermissionBuilder({ permissions, onChange }) {
   const [resource, setResource] = useState("");
@@ -51,6 +63,10 @@ function PermissionBuilder({ permissions, onChange }) {
     );
   }
 
+  function selectAllActions() {
+    setActions([...COMMON_ACTIONS]);
+  }
+
   function addCustomAction() {
     const a = customAction.trim().toLowerCase();
     if (!a || actions.includes(a)) return;
@@ -60,7 +76,6 @@ function PermissionBuilder({ permissions, onChange }) {
 
   function addPermission() {
     if (!resource.trim() || actions.length === 0) return;
-    // Replace existing permission for same resource
     const existing = permissions.findIndex((p) => p.resource === resource.trim());
     if (existing >= 0) {
       const updated = [...permissions];
@@ -77,6 +92,8 @@ function PermissionBuilder({ permissions, onChange }) {
     onChange(permissions.filter((_, i) => i !== idx));
   }
 
+  const resourceLabel = (val) => SYSTEM_RESOURCES.find((r) => r.value === val)?.label || val;
+
   return (
     <div className="space-y-3">
       <Label>Permissions</Label>
@@ -90,7 +107,7 @@ function PermissionBuilder({ permissions, onChange }) {
               className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2"
             >
               <span className="text-xs font-semibold text-foreground min-w-0 flex-1 truncate">
-                {p.resource}
+                {resourceLabel(p.resource)}
               </span>
               <div className="flex flex-wrap gap-1">
                 {p.actions.map((a) => (
@@ -115,16 +132,31 @@ function PermissionBuilder({ permissions, onChange }) {
       <div className="rounded-md border border-dashed border-border p-3 space-y-2.5">
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-muted-foreground">Resource *</p>
-          <Input
-            placeholder="e.g. records, reports, users"
-            value={resource}
-            onChange={(e) => setResource(e.target.value)}
-            className="h-8 text-sm"
-          />
+          <Select value={resource} onValueChange={setResource}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="Select resource..." />
+            </SelectTrigger>
+            <SelectContent>
+              {SYSTEM_RESOURCES.map((r) => (
+                <SelectItem key={r.value} value={r.value}>
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Actions *</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground">Actions *</p>
+            <button
+              type="button"
+              className="text-[10px] text-primary hover:underline"
+              onClick={selectAllActions}
+            >
+              Select all
+            </button>
+          </div>
           <div className="flex flex-wrap gap-3">
             {COMMON_ACTIONS.map((a) => (
               <label key={a} className="flex items-center gap-1.5 cursor-pointer">
@@ -157,7 +189,6 @@ function PermissionBuilder({ permissions, onChange }) {
               Add
             </Button>
           </div>
-          {/* Show any custom actions as selected */}
           {actions.filter((a) => !COMMON_ACTIONS.includes(a)).length > 0 && (
             <div className="flex flex-wrap gap-1">
               {actions
@@ -194,10 +225,9 @@ function PermissionBuilder({ permissions, onChange }) {
 
 // ── Role Form Dialog ───────────────────────────────────────────────────────────
 
-function RoleDialog({ open, onOpenChange, initial, onSave, isPending, title }) {
+function RoleDialog({ open, onOpenChange, initial, onSave, isPending, title, apps = [] }) {
   const [form, setForm] = useState(initial);
 
-  // Reset when dialog opens with new initial value
   const handleOpen = (o) => {
     if (o) setForm(initial);
     onOpenChange(o);
@@ -228,12 +258,24 @@ function RoleDialog({ open, onOpenChange, initial, onSave, isPending, title }) {
             />
           </div>
           <div className="space-y-2">
-            <Label>App ID (optional — leave blank for global role)</Label>
-            <Input
-              placeholder="e.g. 664a1b…"
-              value={form.app_id}
-              onChange={(e) => setForm((p) => ({ ...p, app_id: e.target.value }))}
-            />
+            <Label>App scope</Label>
+            <p className="text-xs text-muted-foreground">Restrict this role to a specific app, or leave as "Global" for all apps.</p>
+            <Select
+              value={form.app_id || "__global__"}
+              onValueChange={(v) => setForm((p) => ({ ...p, app_id: v === "__global__" ? "" : v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Global (all apps)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__global__">Global (all apps)</SelectItem>
+                {apps.map((app) => (
+                  <SelectItem key={app.id} value={app.id}>
+                    {app.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <PermissionBuilder
             permissions={form.permissions}
@@ -262,6 +304,7 @@ function PermissionsCell({ permissions }) {
   if (!permissions?.length)
     return <span className="text-xs text-muted-foreground italic">none</span>;
 
+  const resourceLabel = (val) => SYSTEM_RESOURCES.find((r) => r.value === val)?.label || val;
   const visible = permissions.slice(0, 2);
   const rest = permissions.length - 2;
 
@@ -269,7 +312,7 @@ function PermissionsCell({ permissions }) {
     <div className="flex flex-wrap gap-1">
       {visible.map((p, i) => (
         <Badge key={i} variant="outline" className="text-xs font-mono">
-          {p.resource}:{p.actions?.join(",")}
+          {resourceLabel(p.resource)}: {p.actions?.join(", ")}
         </Badge>
       ))}
       {rest > 0 && (
@@ -286,12 +329,24 @@ function PermissionsCell({ permissions }) {
 export function RbacPage() {
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState(null); // role object being edited
+  const [editTarget, setEditTarget] = useState(null);
 
   const { data: roles = [], isLoading: rolesLoading } = useQuery({
     queryKey: ["rbac", "roles"],
     queryFn: () => rbacApi.listRoles(),
   });
+
+  // Fetch apps for the dropdown
+  const { data: apps = [] } = useQuery({
+    queryKey: ["apps"],
+    queryFn: () => schemaApi.listApps(),
+  });
+
+  // Build app_id → name lookup
+  const appNameMap = {};
+  for (const app of apps) {
+    appNameMap[app.id] = app.name;
+  }
 
   const createRole = useMutation({
     mutationFn: (data) => rbacApi.createRole(data),
@@ -300,7 +355,7 @@ export function RbacPage() {
       setCreateOpen(false);
       toast.success("Role created");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.response?.data?.detail || e.message),
   });
 
   const updateRole = useMutation({
@@ -310,7 +365,7 @@ export function RbacPage() {
       setEditTarget(null);
       toast.success("Role updated");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.response?.data?.detail || e.message),
   });
 
   const deleteRole = useMutation({
@@ -319,7 +374,7 @@ export function RbacPage() {
       qc.invalidateQueries({ queryKey: ["rbac", "roles"] });
       toast.success("Role deleted");
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => toast.error(e.response?.data?.detail || e.message),
   });
 
   function handleCreate(form) {
@@ -398,8 +453,14 @@ export function RbacPage() {
                   <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
                     {role.description || "—"}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {role.app_id ?? "Global"}
+                  <TableCell className="text-sm">
+                    {role.app_id ? (
+                      <Badge variant="outline" className="text-xs">
+                        {appNameMap[role.app_id] || role.app_id}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">Global</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <PermissionsCell permissions={role.permissions} />
@@ -446,6 +507,7 @@ export function RbacPage() {
         onSave={handleCreate}
         isPending={createRole.isPending}
         title="Create Role"
+        apps={apps}
       />
 
       {/* Edit Role dialog */}
@@ -462,6 +524,7 @@ export function RbacPage() {
           onSave={handleUpdate}
           isPending={updateRole.isPending}
           title="Edit Role"
+          apps={apps}
         />
       )}
     </div>
