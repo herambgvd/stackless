@@ -102,14 +102,39 @@ async def validate_record_against_schema(
         elif field.type == FieldType.SELECT:
             allowed = field.config.get("options", [])
             if allowed and value not in allowed:
-                errors.append(f"Field '{label}' value {value!r} is not in allowed options: {allowed}.")
+                # Tolerant match: case-insensitive + strip whitespace + alphanumeric
+                allowed_norm = {
+                    "".join(c for c in str(a).strip().lower() if c.isalnum()): a
+                    for a in allowed
+                }
+                val_norm = "".join(c for c in str(value).strip().lower() if c.isalnum())
+                if val_norm in allowed_norm:
+                    # Auto-correct to the canonical option value
+                    data[field.name] = allowed_norm[val_norm]
+                else:
+                    errors.append(f"Field '{label}' value {value!r} is not in allowed options: {allowed}.")
 
         elif field.type == FieldType.MULTISELECT:
             allowed = field.config.get("options", [])
             if allowed and isinstance(value, list):
-                bad = [v for v in value if v not in allowed]
+                allowed_norm = {
+                    "".join(c for c in str(a).strip().lower() if c.isalnum()): a
+                    for a in allowed
+                }
+                corrected = []
+                bad = []
+                for v in value:
+                    v_norm = "".join(c for c in str(v).strip().lower() if c.isalnum())
+                    if v in allowed:
+                        corrected.append(v)
+                    elif v_norm in allowed_norm:
+                        corrected.append(allowed_norm[v_norm])
+                    else:
+                        bad.append(v)
                 if bad:
                     errors.append(f"Field '{label}' contains invalid options: {bad}.")
+                else:
+                    data[field.name] = corrected
 
         elif field.type == FieldType.JSON:
             if isinstance(value, str):

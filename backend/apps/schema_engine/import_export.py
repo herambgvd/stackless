@@ -482,7 +482,7 @@ async def import_csv(
                         })
                         continue
                 elif field.type == FieldType.SELECT:
-                    # Validate against options if available
+                    # Validate against options — tolerant matching
                     options = field.config.get("options", [])
                     valid_values = []
                     for opt in options:
@@ -490,13 +490,38 @@ async def import_csv(
                             valid_values.append(opt.get("value", ""))
                         else:
                             valid_values.append(str(opt))
-                    if valid_values and raw not in valid_values:
-                        row_errors.append({
-                            "row": i, "field": field_name,
-                            "message": f"Invalid option '{raw}'. Valid: {', '.join(valid_values[:5])}"
-                        })
-                        continue
-                    data[field_name] = raw
+                    if valid_values:
+                        # 1. Exact match
+                        if raw in valid_values:
+                            data[field_name] = raw
+                        else:
+                            # 2. Case-insensitive + whitespace-stripped match
+                            raw_norm = raw.strip().lower()
+                            matched_opt = None
+                            for v in valid_values:
+                                if v.strip().lower() == raw_norm:
+                                    matched_opt = v
+                                    break
+                            if matched_opt:
+                                data[field_name] = matched_opt
+                            else:
+                                # 3. Partial/contains match (e.g., "NA" matches "N/A")
+                                raw_alpha = "".join(c for c in raw_norm if c.isalnum())
+                                for v in valid_values:
+                                    v_alpha = "".join(c for c in v.strip().lower() if c.isalnum())
+                                    if raw_alpha == v_alpha:
+                                        matched_opt = v
+                                        break
+                                if matched_opt:
+                                    data[field_name] = matched_opt
+                                else:
+                                    row_errors.append({
+                                        "row": i, "field": field_name,
+                                        "message": f"Invalid option '{raw}'. Valid: {', '.join(valid_values[:5])}"
+                                    })
+                                    continue
+                    else:
+                        data[field_name] = raw
                 else:
                     data[field_name] = raw
             except (ValueError, TypeError) as e:

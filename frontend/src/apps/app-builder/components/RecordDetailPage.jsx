@@ -186,14 +186,26 @@ function RelationDropdown({ field, formField, appId, allModels, currentFields, w
     }
   };
 
+  // Find label for the current value (even before relRecords loads)
+  const currentRec = relRecords.find((r) => r.id === formField.value);
+  const currentLabel = currentRec ? getLabel(currentRec) : null;
+
   return (
     <Select onValueChange={handleChange} value={formField.value ?? ""}>
       <SelectTrigger>
-        <SelectValue placeholder={isLoading ? "Loading…" : `Select ${relatedModel?.name ?? relatedSlug}…`} />
+        <SelectValue placeholder={isLoading ? "Loading…" : `Select ${relatedModel?.name ?? relatedSlug}…`}>
+          {formField.value && (currentLabel || (isLoading ? "Loading…" : formField.value))}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {isLoading ? (
-          <SelectItem value="__loading__" disabled>Loading records…</SelectItem>
+          <>
+            {/* Keep current value visible while loading other options */}
+            {formField.value && (
+              <SelectItem value={formField.value}>{currentLabel || formField.value}</SelectItem>
+            )}
+            <SelectItem value="__loading__" disabled>Loading records…</SelectItem>
+          </>
         ) : relRecords.length === 0 ? (
           <SelectItem value="__empty__" disabled>No records found</SelectItem>
         ) : (

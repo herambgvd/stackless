@@ -603,7 +603,7 @@ export function AppBuilderPage() {
             </div>
 
             {/* Right: Config panel */}
-            <div className="w-72 shrink-0 overflow-y-auto">
+            <div className="w-80 shrink-0 overflow-y-auto border-l border-border pl-4">
               <FieldConfig
                 field={selectedField}
                 allModels={models}

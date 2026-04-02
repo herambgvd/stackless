@@ -173,6 +173,9 @@ function RelationDropdown({
     );
   }
 
+  const currentRec = relRecords.find((r) => r.id === formField.value);
+  const currentLabel = currentRec ? getLabel(currentRec) : null;
+
   return (
     <Select onValueChange={formField.onChange} value={formField.value ?? ""}>
       <SelectTrigger>
@@ -184,13 +187,18 @@ function RelationDropdown({
                 ? `Select ${allModels.find((m) => m.slug === cascade?.parentSlug)?.name ?? "parent"} first`
                 : `Select ${relatedModel?.name ?? relatedSlug}…`
           }
-        />
+        >
+          {formField.value && (currentLabel || (isLoading ? "Loading…" : formField.value))}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {isLoading ? (
-          <SelectItem value="__loading__" disabled>
-            Loading records…
-          </SelectItem>
+          <>
+            {formField.value && (
+              <SelectItem value={formField.value}>{currentLabel || formField.value}</SelectItem>
+            )}
+            <SelectItem value="__loading__" disabled>Loading records…</SelectItem>
+          </>
         ) : relRecords.length === 0 ? (
           <SelectItem value="__empty__" disabled>
             {cascade ? "No matching records" : "No records found"}

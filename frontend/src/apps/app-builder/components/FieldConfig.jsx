@@ -52,7 +52,7 @@ export function FieldConfig({ field, allModels = [], currentAppId, onUpdate }) {
   });
 
   return (
-    <div className="flex flex-col h-full rounded-xl border border-border bg-card">
+    <div className="flex flex-col h-full rounded-xl border border-border bg-card overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -197,15 +197,15 @@ export function FieldConfig({ field, allModels = [], currentAppId, onUpdate }) {
               const dep = field.config?.depends_on;
               return (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     <Input
                       value={dep?.field ?? ""}
                       onChange={(e) => updateConfig("depends_on", { ...(dep ?? {}), field: e.target.value })}
                       placeholder="field_name"
-                      className="flex-1 h-7 text-xs font-mono"
+                      className="h-7 text-xs font-mono"
                     />
                     <select
-                      className="rounded-md border border-input bg-background px-2 py-1 text-xs h-7"
+                      className="rounded-md border border-input bg-background px-2 py-1 text-xs h-7 w-full"
                       value={dep?.operator ?? "equals"}
                       onChange={(e) => updateConfig("depends_on", { ...(dep ?? {}), operator: e.target.value })}
                     >
@@ -218,7 +218,7 @@ export function FieldConfig({ field, allModels = [], currentAppId, onUpdate }) {
                         value={dep?.value ?? ""}
                         onChange={(e) => updateConfig("depends_on", { ...(dep ?? {}), value: e.target.value })}
                         placeholder="value"
-                        className="flex-1 h-7 text-xs"
+                        className="col-span-2 h-7 text-xs"
                       />
                     )}
                     {dep?.field && (
