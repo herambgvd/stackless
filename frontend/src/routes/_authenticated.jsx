@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   const setUser = useAuthStore((s) => s.setUser);
+  const setCsrfToken = useAuthStore((s) => s.setCsrfToken);
 
   useEffect(() => {
     // Refresh user data (roles, is_superuser, etc.) from server on mount
@@ -21,7 +22,12 @@ function AuthenticatedLayout() {
       .get("/auth/me")
       .then((res) => setUser(res.data))
       .catch(() => {});
-  }, [setUser]);
+    // Fetch CSRF token on page load (not persisted across refreshes)
+    apiClient
+      .get("/auth/csrf-token")
+      .then((res) => setCsrfToken(res.data.csrf_token))
+      .catch(() => {});
+  }, [setUser, setCsrfToken]);
 
   // Connect to WebSocket for live record / dashboard updates
   useRealtimeUpdates();
