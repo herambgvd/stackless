@@ -24,7 +24,9 @@ function getWsUrl(tenantId) {
   } else {
     host = window.location.host;
   }
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  // Use wss:// only when the API is served over HTTPS, otherwise ws://
+  const apiIsSecure = apiUrl.startsWith("https:");
+  const protocol = apiIsSecure ? "wss" : "ws";
   return `${protocol}://${host}/ws/${tenantId}`;
 }
 
