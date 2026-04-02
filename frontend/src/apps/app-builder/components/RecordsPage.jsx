@@ -1451,8 +1451,8 @@ function RecordsTable({
   }
 
   return (
-    <div className="overflow-x-auto -mx-6">
-      <table className="w-full text-sm min-w-[500px]">
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm" style={{ minWidth: Math.max(500, displayFields.length * 180) }}>
         <thead>
           <tr className="border-b border-border bg-muted/30">
             <th className="py-2.5 pl-4 pr-2 w-8">
@@ -2276,7 +2276,7 @@ export function RecordsPage() {
       {/* Records view */}
       <div>
         {activeModel && (
-          <Card className="overflow-hidden">
+          <Card>
             {/* Card header with search */}
             <CardHeader className="pb-3 border-b border-border">
               <div className="flex items-start justify-between gap-3">

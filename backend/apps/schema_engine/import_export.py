@@ -314,6 +314,66 @@ async def export_xlsx(
     )
 
 
+# ── Relation Lookup Builder (shared by CSV and Google Sheets import) ──────────
+
+async def _build_relation_lookups(
+    mapping: dict[str, str],
+    model_fields: dict,
+    app_id: str,
+    tenant_id: str,
+) -> dict[str, dict[str, str]]:
+    """Pre-build lookup caches for relation fields.
+
+    For each relation field in the mapping, fetches records from the related
+    model and builds {display_value_lowercase: record_id}.
+    This lets users import "SI" instead of raw ObjectIds.
+    """
+    relation_lookups: dict[str, dict[str, str]] = {}
+
+    for field_name in mapping.values():
+        field = model_fields.get(field_name)
+        if not field or field.type != FieldType.RELATION:
+            continue
+        related_slug = field.config.get("related_model_slug")
+        target_app_id = field.config.get("target_app_id") or app_id
+        if not related_slug:
+            continue
+        try:
+            related_model = await get_model_by_slug(related_slug, target_app_id)
+            if not related_model:
+                continue
+            # Determine display field: config.display_field → name/title → first text field
+            display_field = field.config.get("display_field")
+            if not display_field:
+                for rf in related_model.fields:
+                    if rf.type == FieldType.TEXT and rf.name in ("name", "title"):
+                        display_field = rf.name
+                        break
+                if not display_field:
+                    for rf in related_model.fields:
+                        if rf.type == FieldType.TEXT:
+                            display_field = rf.name
+                            break
+            if not display_field:
+                display_field = "name"
+
+            # Fetch related records (up to 5000)
+            from core.database import get_tenant_db
+            db = get_tenant_db(tenant_id)
+            col = db[f"data__{target_app_id}__{related_slug}"]
+            cursor = col.find({}, {"_id": 1, display_field: 1}).limit(5000)
+            lookup = {}
+            async for doc in cursor:
+                val = doc.get(display_field, "")
+                if val:
+                    lookup[str(val).strip().lower()] = str(doc["_id"])
+            relation_lookups[field_name] = lookup
+        except Exception:
+            pass  # If lookup fails, user must provide IDs directly
+
+    return relation_lookups
+
+
 # ── Import ────────────────────────────────────────────────────────────────────
 
 async def import_csv(
@@ -379,6 +439,9 @@ async def import_csv(
                 if label_key in label_to_name:
                     mapping[csv_col] = label_to_name[label_key]
 
+    # Pre-build relation lookup caches for display-value → ID resolution
+    relation_lookups = await _build_relation_lookups(mapping, model_fields, app_id, tenant_id)
+
     created = 0
     failed = 0
     errors: list[dict] = []
@@ -403,6 +466,21 @@ async def import_csv(
                     data[field_name] = [v.strip() for v in raw.split(",") if v.strip()]
                 elif field.type == FieldType.RATING:
                     data[field_name] = int(float(raw))
+                elif field.type == FieldType.RELATION:
+                    # Resolve display value to record ID
+                    lookup = relation_lookups.get(field_name, {})
+                    resolved = lookup.get(raw.strip().lower())
+                    if resolved:
+                        data[field_name] = resolved
+                    elif len(raw) == 24 and all(c in "0123456789abcdef" for c in raw):
+                        # Looks like an ObjectId — use as-is
+                        data[field_name] = raw
+                    else:
+                        row_errors.append({
+                            "row": i, "field": field_name,
+                            "message": f"Cannot resolve '{raw}' — no matching record found in related model"
+                        })
+                        continue
                 elif field.type == FieldType.SELECT:
                     # Validate against options if available
                     options = field.config.get("options", [])
@@ -548,6 +626,9 @@ async def import_google_sheet(
         elif field_name.strip().lower() in label_to_name:
             mapping[csv_col] = label_to_name[field_name.strip().lower()]
 
+    # Build relation lookups (same as CSV import)
+    relation_lookups = await _build_relation_lookups(mapping, model_fields, app_id, tenant_id)
+
     created = 0
     failed = 0
     errors: list[dict] = []
@@ -569,6 +650,19 @@ async def import_google_sheet(
                     data[field_name] = [v.strip() for v in raw.split(",") if v.strip()]
                 elif field.type == FieldType.RATING:
                     data[field_name] = int(float(raw))
+                elif field.type == FieldType.RELATION:
+                    lookup = relation_lookups.get(field_name, {})
+                    resolved = lookup.get(raw.strip().lower())
+                    if resolved:
+                        data[field_name] = resolved
+                    elif len(raw) == 24 and all(c in "0123456789abcdef" for c in raw):
+                        data[field_name] = raw
+                    else:
+                        row_errors.append({
+                            "row": i, "field": field_name,
+                            "message": f"Cannot resolve '{raw}' — no matching record found in related model"
+                        })
+                        continue
                 else:
                     data[field_name] = raw
             except (ValueError, TypeError) as e:
