@@ -45,15 +45,11 @@ export default function ImportDialog({ open, onClose, appId, modelSlug, fields, 
 
   async function handleDownloadTemplate(format = 'csv') {
     try {
-      const headers = {};
-      if (tokens?.access_token) headers['Authorization'] = `Bearer ${tokens.access_token}`;
-      if (authUser?.tenant_id) headers['X-Tenant-ID'] = authUser.tenant_id;
-      const res = await fetch(
-        `/api/schema/apps/${appId}/${modelSlug}/records/import-template?format=${format}`,
-        { headers },
+      const res = await schemaApi._client().get(
+        `/schema/apps/${appId}/${modelSlug}/records/import-template`,
+        { params: { format }, responseType: 'blob' },
       );
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const blob = await res.blob();
+      const blob = new Blob([res.data]);
       const href = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = href;
@@ -61,7 +57,7 @@ export default function ImportDialog({ open, onClose, appId, modelSlug, fields, 
       a.click();
       URL.revokeObjectURL(href);
     } catch (err) {
-      toast.error('Failed to download template: ' + err.message);
+      toast.error('Failed to download template: ' + (err.response?.data?.detail || err.message));
     }
   }
 

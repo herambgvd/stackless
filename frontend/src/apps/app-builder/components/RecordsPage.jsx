@@ -2113,15 +2113,12 @@ export function RecordsPage() {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const headers = {};
-      if (tokens?.access_token) headers['Authorization'] = `Bearer ${tokens.access_token}`;
-      if (authUser?.tenant_id) headers['X-Tenant-ID'] = authUser.tenant_id;
-      const res = await fetch(
-        `/api/schema/apps/${appId}/${activeModelSlug}/records/fixtures?on_conflict=skip`,
-        { method: 'POST', headers, body: fd },
+      const res = await apiClient.post(
+        `/schema/apps/${appId}/${activeModelSlug}/records/fixtures`,
+        fd,
+        { params: { on_conflict: 'skip' }, headers: { 'Content-Type': 'multipart/form-data' } },
       );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Import failed');
+      const data = res.data;
       toast.success(`Fixtures imported: ${data.imported} new, ${data.updated} updated, ${data.skipped} skipped`);
       qc.invalidateQueries({ queryKey: ['records', appId, activeModelSlug] });
     } catch (err) {
@@ -2131,22 +2128,15 @@ export function RecordsPage() {
 
   async function handleExport(format) {
     try {
-      const url =
+      const endpoint =
         format === "fixtures"
-          ? `/api/schema/apps/${appId}/${activeModelSlug}/records/fixtures`
+          ? `/schema/apps/${appId}/${activeModelSlug}/records/fixtures`
           : format === "pdf"
-          ? `/api/schema/apps/${appId}/${activeModelSlug}/records/report.pdf`
-          : schemaApi.exportRecordsUrl(appId, activeModelSlug, format);
-      const headers = {};
-      if (tokens?.access_token) {
-        headers["Authorization"] = `Bearer ${tokens.access_token}`;
-      }
-      if (authUser?.tenant_id) {
-        headers["X-Tenant-ID"] = authUser.tenant_id;
-      }
-      const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const blob = await res.blob();
+          ? `/schema/apps/${appId}/${activeModelSlug}/records/report.pdf`
+          : `/schema/apps/${appId}/${activeModelSlug}/records/export`;
+      const params = format === "fixtures" || format === "pdf" ? {} : { format };
+      const res = await apiClient.get(endpoint, { params, responseType: "blob" });
+      const blob = new Blob([res.data]);
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = href;
@@ -2159,7 +2149,7 @@ export function RecordsPage() {
       a.click();
       URL.revokeObjectURL(href);
     } catch (err) {
-      toast.error("Export failed: " + err.message);
+      toast.error("Export failed: " + (err.response?.data?.detail || err.message));
     }
   }
 
