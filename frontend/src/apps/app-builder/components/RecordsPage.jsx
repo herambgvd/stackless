@@ -24,6 +24,7 @@ import {
   Plus,
   Trash2,
   Pencil,
+  Eye,
   TableProperties,
   X,
   Check,
@@ -1368,27 +1369,18 @@ const RecordRow = memo(function RecordRow({
             variant="ghost"
             className="h-7 w-7 hover:bg-primary/10 hover:text-primary"
             onClick={() => onEdit(record)}
+            title="View"
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 hover:bg-primary/10 hover:text-primary"
+            onClick={() => onEdit(record)}
             title="Edit"
           >
             <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 hover:bg-amber-500/10 hover:text-amber-600"
-            onClick={() => onTriggerWorkflow(record)}
-            title="Trigger Workflow"
-          >
-            <Play className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 hover:bg-blue-500/10 hover:text-blue-600"
-            onClick={() => onSubmitApproval(record)}
-            title="Submit for Approval"
-          >
-            <Send className="h-3.5 w-3.5" />
           </Button>
           <Button
             size="icon"
@@ -2796,59 +2788,71 @@ export function RecordsPage() {
             </p>
           ) : (
             <div className="space-y-3 py-2">
-              {auditLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="border border-border rounded-lg p-3 space-y-1.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "text-xs capitalize",
-                        log.action === "create" &&
-                          "border-green-500/30 text-green-600",
-                        log.action === "update" &&
-                          "border-blue-500/30 text-blue-600",
-                        log.action === "delete" &&
-                          "border-red-500/30 text-red-600",
-                      )}
-                    >
-                      {log.action}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {fmtSmart(log.created_at).label}
-                    </span>
-                  </div>
-                  {log.user_id && (
-                    <p className="text-xs text-muted-foreground">
-                      By:{" "}
-                      <code className="bg-muted px-1 rounded">
-                        {log.user_id.slice(0, 8)}…
-                      </code>
-                    </p>
-                  )}
-                  {Object.keys(log.changes).length > 0 && (
-                    <div className="space-y-1">
-                      {Object.entries(log.changes).map(([field, change]) => (
-                        <div key={field} className="text-xs">
-                          <span className="font-medium">{field}:</span>{" "}
-                          {change.from !== undefined && (
-                            <span className="text-red-500 line-through mr-1">
-                              {String(change.from ?? "")}
-                            </span>
-                          )}
-                          {change.to !== undefined && (
-                            <span className="text-green-600">
-                              {String(change.to ?? "")}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+              {auditLogs.map((log) => {
+                // Build field name → label lookup from active model
+                const fieldLabelMap = {};
+                for (const f of (activeModel?.fields ?? [])) {
+                  fieldLabelMap[f.name] = f.label || f.name;
+                }
+                const getFieldLabel = (name) => fieldLabelMap[name] || name;
+                const getUserName = (uid) => log.user_name || log.user_email || (uid ? `${uid.slice(0, 8)}…` : "System");
+
+                return (
+                  <div
+                    key={log.id}
+                    className="border border-border rounded-lg p-3 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs capitalize",
+                          log.action === "create" &&
+                            "border-green-500/30 text-green-600",
+                          log.action === "update" &&
+                            "border-blue-500/30 text-blue-600",
+                          log.action === "delete" &&
+                            "border-red-500/30 text-red-600",
+                        )}
+                      >
+                        {log.action === "create" ? "Created" : log.action === "update" ? "Updated" : log.action === "delete" ? "Deleted" : log.action}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {fmtSmart(log.created_at).label}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {log.user_id && (
+                      <p className="text-xs text-muted-foreground">
+                        By: <span className="font-medium text-foreground">{getUserName(log.user_id)}</span>
+                      </p>
+                    )}
+                    {Object.keys(log.changes).length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                          Show changes ({Object.keys(log.changes).length} fields)
+                        </p>
+                        {Object.entries(log.changes).map(([field, change]) => (
+                          <div key={field} className="text-xs flex items-start gap-1.5">
+                            <span className="font-medium text-foreground whitespace-nowrap min-w-[80px]">{getFieldLabel(field)}:</span>
+                            <span className="flex-1">
+                              {change.from !== undefined && change.from !== "" && (
+                                <span className="text-red-500 line-through mr-1">
+                                  {String(change.from)}
+                                </span>
+                              )}
+                              {change.to !== undefined && (
+                                <span className="text-green-600">
+                                  {String(change.to ?? "")}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
           <DialogFooter>

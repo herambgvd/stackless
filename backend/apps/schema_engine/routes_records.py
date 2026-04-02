@@ -624,11 +624,26 @@ async def get_record_audit_endpoint(
         AuditLog.record_id == record_id,
     ).sort(-AuditLog.created_at).skip(skip).limit(page_size).to_list()
 
+    # Batch-resolve user IDs to names/emails for display
+    user_ids = list({log.user_id for log in logs if log.user_id})
+    user_map = {}
+    if user_ids:
+        from apps.auth.models import User
+        from beanie import PydanticObjectId
+        try:
+            users = await User.find({"_id": {"$in": [PydanticObjectId(uid) for uid in user_ids]}}).to_list()
+            for u in users:
+                user_map[str(u.id)] = {"name": u.full_name, "email": u.email}
+        except Exception:
+            pass
+
     return [
         {
             "id": str(log.id),
             "action": log.action,
             "user_id": log.user_id,
+            "user_name": user_map.get(log.user_id, {}).get("name"),
+            "user_email": user_map.get(log.user_id, {}).get("email"),
             "changes": log.changes,
             "created_at": log.created_at.isoformat().replace("+00:00", "Z"),
         }
