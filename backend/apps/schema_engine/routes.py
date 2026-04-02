@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends, File, Form, Query, UploadFile, status
+from pydantic import BaseModel
 import asyncio
 import json
 
@@ -476,6 +477,39 @@ async def import_hints_endpoint(
 ):
     from apps.schema_engine.import_export import get_field_type_hints
     return await get_field_type_hints(model_slug, app_id)
+
+
+class GoogleSheetImportRequest(BaseModel):
+    sheet_url: str
+    column_map: dict[str, str] | None = None
+
+
+@router.post("/apps/{app_id}/{model_slug}/records/import-google-sheet")
+async def import_google_sheet_endpoint(
+    app_id: str,
+    model_slug: str,
+    payload: GoogleSheetImportRequest,
+    tenant_id: str = Depends(get_tenant_id),
+    current_user=Depends(require_permission("records", "create")),
+):
+    """Import records from a Google Sheets URL.
+
+    Step 1: Send { sheet_url } without column_map → returns headers for mapping.
+    Step 2: Send { sheet_url, column_map } → imports records.
+    """
+    from apps.schema_engine.import_export import import_google_sheet
+    try:
+        return await import_google_sheet(
+            model_slug=model_slug,
+            app_id=app_id,
+            tenant_id=tenant_id,
+            sheet_url=payload.sheet_url,
+            user_id=str(current_user.id),
+            column_map=payload.column_map,
+        )
+    except ValueError as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/apps/{app_id}/{model_slug}/records/export")

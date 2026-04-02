@@ -65,62 +65,6 @@ async def create_tenant_endpoint(
     )
 
 
-@router.get("/{tenant_id}", response_model=TenantResponse)
-async def get_tenant(
-    tenant_id: str,
-    current_user=Depends(get_current_active_user),
-):
-    tenant = await get_tenant_by_id(tenant_id)
-    if not tenant:
-        raise NotFoundError("Tenant", tenant_id)
-    # Only superusers or the tenant's own users may view tenant details
-    if not current_user.is_superuser and str(current_user.tenant_id) != str(tenant.id):
-        raise ForbiddenError("Access to this tenant is not allowed.")
-    return TenantResponse(
-        id=str(tenant.id),
-        name=tenant.name,
-        slug=tenant.slug,
-        plan=tenant.plan,
-        is_active=tenant.is_active,
-        owner_id=tenant.owner_id,
-        settings=tenant.settings.model_dump(),
-        created_at=tenant.created_at,
-        updated_at=tenant.updated_at,
-    )
-
-
-@router.put("/{tenant_id}", response_model=TenantResponse)
-async def update_tenant_endpoint(
-    tenant_id: str,
-    payload: TenantUpdate,
-    current_user=Depends(get_current_active_user),
-):
-    if not current_user.is_superuser and str(current_user.tenant_id) != tenant_id:
-        raise ForbiddenError("You can only update your own tenant.")
-    tenant = await update_tenant_details(tenant_id, payload, str(current_user.id))
-    return TenantResponse(
-        id=str(tenant.id),
-        name=tenant.name,
-        slug=tenant.slug,
-        plan=tenant.plan,
-        is_active=tenant.is_active,
-        owner_id=tenant.owner_id,
-        settings=tenant.settings.model_dump(),
-        created_at=tenant.created_at,
-        updated_at=tenant.updated_at,
-    )
-
-
-@router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_tenant_endpoint(
-    tenant_id: str,
-    _=Depends(require_superuser),
-):
-    deleted = await delete_tenant(tenant_id)
-    if not deleted:
-        raise NotFoundError("Tenant", tenant_id)
-
-
 @router.get("/email-config", response_model=TenantEmailConfigResponse)
 async def get_tenant_email_config(
     tenant_id: str = Depends(get_tenant_id),
@@ -257,6 +201,64 @@ async def reset_tenant_config_endpoint(
     tenant.config = TenantConfig()
     await update_tenant(tenant, config=tenant.config)
     invalidate_tenant_config_cache(tenant_id)
+
+
+# Keep dynamic tenant_id routes after static paths like /email-config and /config.
+# FastAPI/Starlette matches routes in declaration order.
+@router.get("/{tenant_id}", response_model=TenantResponse)
+async def get_tenant(
+    tenant_id: str,
+    current_user=Depends(get_current_active_user),
+):
+    tenant = await get_tenant_by_id(tenant_id)
+    if not tenant:
+        raise NotFoundError("Tenant", tenant_id)
+    # Only superusers or the tenant's own users may view tenant details
+    if not current_user.is_superuser and str(current_user.tenant_id) != str(tenant.id):
+        raise ForbiddenError("Access to this tenant is not allowed.")
+    return TenantResponse(
+        id=str(tenant.id),
+        name=tenant.name,
+        slug=tenant.slug,
+        plan=tenant.plan,
+        is_active=tenant.is_active,
+        owner_id=tenant.owner_id,
+        settings=tenant.settings.model_dump(),
+        created_at=tenant.created_at,
+        updated_at=tenant.updated_at,
+    )
+
+
+@router.put("/{tenant_id}", response_model=TenantResponse)
+async def update_tenant_endpoint(
+    tenant_id: str,
+    payload: TenantUpdate,
+    current_user=Depends(get_current_active_user),
+):
+    if not current_user.is_superuser and str(current_user.tenant_id) != tenant_id:
+        raise ForbiddenError("You can only update your own tenant.")
+    tenant = await update_tenant_details(tenant_id, payload, str(current_user.id))
+    return TenantResponse(
+        id=str(tenant.id),
+        name=tenant.name,
+        slug=tenant.slug,
+        plan=tenant.plan,
+        is_active=tenant.is_active,
+        owner_id=tenant.owner_id,
+        settings=tenant.settings.model_dump(),
+        created_at=tenant.created_at,
+        updated_at=tenant.updated_at,
+    )
+
+
+@router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tenant_endpoint(
+    tenant_id: str,
+    _=Depends(require_superuser),
+):
+    deleted = await delete_tenant(tenant_id)
+    if not deleted:
+        raise NotFoundError("Tenant", tenant_id)
 
 
 @router.get("/{tenant_id}/stats", response_model=TenantStatsResponse)

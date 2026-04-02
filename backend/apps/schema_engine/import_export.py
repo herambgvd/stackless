@@ -461,6 +461,139 @@ async def import_csv(
     return {"created": created, "failed": failed, "errors": errors}
 
 
+# ── Google Sheets Import ──────────────────────────────────────────────────────
+
+import re
+import httpx
+
+
+def _extract_sheet_id(url: str) -> tuple[str, str]:
+    """Extract the spreadsheet ID and gid from a Google Sheets URL.
+
+    Supports formats:
+      - https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=0
+      - https://docs.google.com/spreadsheets/d/SHEET_ID/edit?gid=0
+      - https://docs.google.com/spreadsheets/d/SHEET_ID/
+    Returns (sheet_id, gid).
+    """
+    match = re.search(r'/spreadsheets/d/([a-zA-Z0-9_-]+)', url)
+    if not match:
+        raise ValueError("Invalid Google Sheets URL. Please provide a valid sharing link.")
+    sheet_id = match.group(1)
+
+    gid_match = re.search(r'[#?&]gid=(\d+)', url)
+    gid = gid_match.group(1) if gid_match else "0"
+
+    return sheet_id, gid
+
+
+async def fetch_google_sheet_csv(url: str) -> str:
+    """Fetch CSV content from a public/shared Google Sheets URL."""
+    sheet_id, gid = _extract_sheet_id(url)
+    export_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        resp = await client.get(export_url)
+        if resp.status_code == 404:
+            raise ValueError("Spreadsheet not found. Make sure the sheet exists and sharing is enabled.")
+        if resp.status_code == 403:
+            raise ValueError("Access denied. Make sure the sheet is shared as 'Anyone with the link can view'.")
+        if resp.status_code != 200:
+            raise ValueError(f"Failed to fetch sheet (HTTP {resp.status_code}). Check the URL and sharing settings.")
+        return resp.text
+
+
+async def import_google_sheet(
+    model_slug: str,
+    app_id: str,
+    tenant_id: str,
+    sheet_url: str,
+    user_id: str,
+    column_map: dict[str, str] | None = None,
+) -> dict:
+    """
+    Import records from a Google Sheets URL.
+    The sheet must be shared as 'Anyone with the link can view'.
+    Uses the same import logic as CSV import.
+    """
+    csv_text = await fetch_google_sheet_csv(sheet_url)
+
+    # Parse headers for the frontend mapping step if no column_map provided
+    reader = csv.DictReader(io.StringIO(csv_text))
+    if reader.fieldnames is None:
+        return {"created": 0, "failed": 0, "errors": [{"row": 0, "field": "", "message": "Empty spreadsheet"}]}
+
+    if column_map is None:
+        # Return headers for the frontend to show the mapping step
+        cleaned = [h.strip() for h in reader.fieldnames if h.strip() and h.strip() != '_id']
+        return {"step": "map", "headers": cleaned, "row_count": sum(1 for _ in reader)}
+
+    # Full import with column mapping
+    model = await get_model_by_slug(model_slug, app_id)
+    if model is None:
+        from core.exceptions import NotFoundError
+        raise NotFoundError("Model", model_slug)
+
+    model_fields = {f.name: f for f in model.fields}
+    label_to_name = {}
+    for f in model.fields:
+        if f.label:
+            label_to_name[f.label.strip().lower()] = f.name
+
+    # Build mapping
+    mapping = {}
+    for csv_col, field_name in column_map.items():
+        if field_name in model_fields:
+            mapping[csv_col] = field_name
+        elif field_name.strip().lower() in label_to_name:
+            mapping[csv_col] = label_to_name[field_name.strip().lower()]
+
+    created = 0
+    failed = 0
+    errors: list[dict] = []
+
+    for i, row in enumerate(reader, start=2):
+        data: dict = {}
+        row_errors = []
+        for csv_col, field_name in mapping.items():
+            raw = row.get(csv_col, "").strip()
+            if not raw:
+                continue
+            field = model_fields[field_name]
+            try:
+                if field.type in (FieldType.NUMBER, FieldType.CURRENCY):
+                    data[field_name] = float(raw)
+                elif field.type == FieldType.BOOLEAN:
+                    data[field_name] = raw.lower() in ("true", "1", "yes")
+                elif field.type == FieldType.MULTISELECT:
+                    data[field_name] = [v.strip() for v in raw.split(",") if v.strip()]
+                elif field.type == FieldType.RATING:
+                    data[field_name] = int(float(raw))
+                else:
+                    data[field_name] = raw
+            except (ValueError, TypeError) as e:
+                row_errors.append({"row": i, "field": field_name, "message": str(e)})
+
+        if row_errors:
+            errors.extend(row_errors)
+            failed += 1
+            continue
+        if not data:
+            continue
+
+        try:
+            await create_record(model_slug, app_id, tenant_id, data, user_id=user_id)
+            created += 1
+        except Exception as exc:
+            failed += 1
+            errors.append({"row": i, "field": "", "message": str(exc)})
+            if len(errors) >= 50:
+                errors.append({"row": 0, "field": "", "message": "... more errors truncated"})
+                break
+
+    return {"created": created, "failed": failed, "errors": errors}
+
+
 async def get_field_type_hints(model_slug: str, app_id: str) -> list[dict]:
     """Return field type hints for the import column mapping UI."""
     model = await get_model_by_slug(model_slug, app_id)
