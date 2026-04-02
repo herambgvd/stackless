@@ -2497,7 +2497,7 @@ export function RecordsPage() {
                       variant="outline"
                       className="h-6 text-xs gap-1"
                       onClick={() => {
-                        setFilterConditions([...filterConditions, { field: filterableFields[0]?.name ?? "", operator: "equals", value: "" }]);
+                        setFilterConditions([...filterConditions, { field: filterableFields[0]?.name ?? "", operator: "contains", value: "" }]);
                       }}
                     >
                       <Plus className="h-3 w-3" /> Add condition

@@ -614,7 +614,11 @@ async def list_records(
         raise NotFoundError("Model", model_slug)
 
     # Collect searchable field names for backend full-text search
+    # If no fields are explicitly marked searchable, fall back to all text-like fields
+    _text_types = {"text", "email", "phone", "url", "select", "rich_text"}
     search_fields = [f.name for f in model.fields if f.is_searchable and f.type not in ("boolean", "file", "json")]
+    if not search_fields:
+        search_fields = [f.name for f in model.fields if f.type in _text_types]
 
     skip = (page - 1) * page_size
     items, total = await list_dynamic_records(
